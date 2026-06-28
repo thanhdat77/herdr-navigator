@@ -52,6 +52,23 @@ impl Source {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum WorkspaceKind {
+    Project,
+    Dir,
+    Unknown,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct WorkspaceRef {
+    pub(crate) id: String,
+    pub(crate) label: String,
+    pub(crate) kind: WorkspaceKind,
+    pub(crate) path: PathBuf,
+    pub(crate) tab_count: i64,
+    pub(crate) pane_count: i64,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Entry {
     pub(crate) source: Source,

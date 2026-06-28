@@ -10,11 +10,11 @@ use serde_json::Value;
 use crate::{
     config::Config,
     herdr::{herdr_json, run_herdr},
-    model::{Entry, Project, Source},
+    model::{Entry, Project, Source, WorkspaceKind, WorkspaceRef},
     paths::{basename, canonical_str, expand_path, herdr_plus_projects_dir, home},
 };
 
-pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, String>) {
+pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>) {
     let ws_json = herdr_json(["workspace", "list"]).unwrap_or(Value::Null);
     let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
     let mut cwd_by_ws: HashMap<String, String> = HashMap::new();
@@ -50,18 +50,22 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, String>) {
                 .cloned()
                 .unwrap_or_else(|| home().display().to_string());
             let path = PathBuf::from(&cwd);
+            let tab_count = w.get("tab_count").and_then(|v| v.as_i64()).unwrap_or(0);
+            let pane_count = w.get("pane_count").and_then(|v| v.as_i64()).unwrap_or(0);
             if let Some(key) = canonical_str(&path) {
-                map.insert(key, id.into());
+                map.entry(key).or_insert_with(Vec::new).push(WorkspaceRef {
+                    id: id.into(),
+                    label: label.into(),
+                    kind: workspace_kind(label),
+                    path: path.clone(),
+                    tab_count,
+                    pane_count,
+                });
             }
             entries.push(Entry {
                 source: Source::Workspace,
                 title: label.into(),
-                subtitle: format!(
-                    "{} tabs:{} panes:{}",
-                    id,
-                    w.get("tab_count").and_then(|v| v.as_i64()).unwrap_or(0),
-                    w.get("pane_count").and_then(|v| v.as_i64()).unwrap_or(0)
-                ),
+                subtitle: format!("{} tabs:{} panes:{}", id, tab_count, pane_count),
                 path,
                 workspace_id: Some(id.into()),
                 agent_target: None,
@@ -70,6 +74,17 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, String>) {
         }
     }
     (entries, map)
+}
+
+fn workspace_kind(label: &str) -> WorkspaceKind {
+    let label = label.trim().to_ascii_lowercase();
+    if label.starts_with("project:") {
+        WorkspaceKind::Project
+    } else if label.starts_with("dir:") {
+        WorkspaceKind::Dir
+    } else {
+        WorkspaceKind::Unknown
+    }
 }
 
 pub(crate) fn collect_agents() -> Vec<Entry> {

@@ -7,7 +7,7 @@ use crate::{
     config::Config,
     herdr::{herdr_json, run_herdr},
     matcher::match_score,
-    model::{Entry, Source},
+    model::{Entry, Source, WorkspaceKind, WorkspaceRef},
     paths::{canonical_str, herdr_plus_quick_actions_dir},
     sources::{
         bootstrap_project_tabs, collect_agents, collect_projects, collect_roots,
@@ -25,7 +25,7 @@ pub(crate) struct App {
     pub(crate) query: String,
     pub(crate) source_filter: Option<Source>,
     pub(crate) preview: bool,
-    pub(crate) path_to_workspace: HashMap<String, String>,
+    pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
 }
 
 impl App {
@@ -39,15 +39,15 @@ impl App {
             query: String::new(),
             source_filter: None,
             preview: true,
-            path_to_workspace: HashMap::new(),
+            path_to_workspaces: HashMap::new(),
         }
     }
 
     pub(crate) fn refresh(&mut self) {
         let mut entries = Vec::new();
         let mut seen = HashSet::new();
-        let (workspace_entries, path_to_workspace) = collect_workspaces();
-        self.path_to_workspace = path_to_workspace;
+        let (workspace_entries, path_to_workspaces) = collect_workspaces();
+        self.path_to_workspaces = path_to_workspaces;
 
         if self.config.sources.open_workspaces {
             push_unique(&mut entries, &mut seen, workspace_entries);
@@ -158,28 +158,30 @@ impl App {
                 "invoke",
                 "cloudmanic.herdr-plus.quick-actions",
             ]),
-            Source::Zoxide | Source::Root => self.focus_or_create(&e.path, &e.title),
+            Source::Zoxide | Source::Root => self.focus_or_create_dir(&e.path, &e.title),
         }
     }
 
     pub(crate) fn open_project(&self, e: &Entry) -> Result<(), String> {
         if self.config.picker.reuse_existing {
-            if let Some(id) = self.path_to_workspace.get(&e.key()) {
-                return run_herdr(["workspace", "focus", id]);
+            if let Some(ws) = self.matching_project_workspace(e) {
+                return run_herdr(["workspace", "focus", &ws.id]);
             }
         }
         if !self.config.picker.create_missing {
             return Err("create_missing=false and no workspace exists".into());
         }
         let project = e.project.as_ref();
-        let label = project.map(|p| p.name.as_str()).unwrap_or(e.title.as_str());
+        let label = project
+            .map(|p| format!("project: {}", p.name))
+            .unwrap_or_else(|| format!("project: {}", e.title));
         let json = herdr_json([
             "workspace",
             "create",
             "--cwd",
             &e.path.display().to_string(),
             "--label",
-            label,
+            &label,
             "--focus",
         ])?;
         if let Some(p) = project {
@@ -188,33 +190,139 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn focus_or_create(&self, path: &Path, label: &str) -> Result<(), String> {
+    pub(crate) fn focus_or_create_dir(&self, path: &Path, label: &str) -> Result<(), String> {
         let key = canonical_str(path).unwrap_or_else(|| path.display().to_string());
         if self.config.picker.reuse_existing {
-            if let Some(id) = self.path_to_workspace.get(&key) {
-                return run_herdr(["workspace", "focus", id]);
+            if let Some(ws) = self.matching_dir_workspace_by_key(&key) {
+                return run_herdr(["workspace", "focus", &ws.id]);
             }
         }
         if !self.config.picker.create_missing {
             return Err("create_missing=false and no workspace exists".into());
         }
+        let label = format!("dir: {label}");
         run_herdr([
             "workspace",
             "create",
             "--cwd",
             &path.display().to_string(),
             "--label",
-            label,
+            &label,
             "--focus",
         ])
+    }
+
+    pub(crate) fn workspaces_for_entry(&self, e: &Entry) -> &[WorkspaceRef] {
+        self.path_to_workspaces
+            .get(&e.key())
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub(crate) fn matching_project_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
+        self.workspaces_for_entry(e)
+            .iter()
+            .find(|ws| ws.kind == WorkspaceKind::Project)
+    }
+
+    pub(crate) fn matching_dir_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
+        self.matching_dir_workspace_by_key(&e.key())
+    }
+
+    fn matching_dir_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
+        self.path_to_workspaces
+            .get(key)?
+            .iter()
+            .find(|ws| ws.kind == WorkspaceKind::Dir)
     }
 }
 
 fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: Vec<Entry>) {
     for e in incoming {
-        let key = format!("{}:{}", e.source.label(), e.key());
+        let key = if e.source == Source::Workspace {
+            format!("open:{}", e.workspace_id.as_deref().unwrap_or(&e.title))
+        } else {
+            format!("{}:{}", e.source.label(), e.key())
+        };
         if seen.insert(key) {
             entries.push(e);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::{config::Config, model::Project, theme::Theme};
+
+    fn entry(source: Source, path: &str, title: &str) -> Entry {
+        Entry {
+            source,
+            title: title.into(),
+            subtitle: String::new(),
+            path: PathBuf::from(path),
+            workspace_id: None,
+            agent_target: None,
+            project: None,
+        }
+    }
+
+    fn workspace(id: &str, label: &str, kind: WorkspaceKind, path: &str) -> WorkspaceRef {
+        WorkspaceRef {
+            id: id.into(),
+            label: label.into(),
+            kind,
+            path: PathBuf::from(path),
+            tab_count: 1,
+            pane_count: 1,
+        }
+    }
+
+    #[test]
+    fn source_specific_reuse_distinguishes_same_path_workspaces() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.path_to_workspaces.insert(
+            "/tmp".into(),
+            vec![
+                workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
+                workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
+            ],
+        );
+
+        let mut project = entry(Source::Project, "/tmp", "tmp");
+        project.project = Some(Project {
+            name: "tmp".into(),
+            description: String::new(),
+            working_dir: "/tmp".into(),
+            tabs: vec![],
+        });
+        let dir = entry(Source::Zoxide, "/tmp", "tmp");
+
+        assert_eq!(app.matching_project_workspace(&project).unwrap().id, "w1");
+        assert_eq!(app.matching_dir_workspace(&dir).unwrap().id, "w2");
+    }
+
+    #[test]
+    fn workspace_rows_are_not_deduped_by_path() {
+        let mut entries = Vec::new();
+        let mut seen = HashSet::new();
+        push_unique(
+            &mut entries,
+            &mut seen,
+            vec![
+                Entry {
+                    workspace_id: Some("w1".into()),
+                    ..entry(Source::Workspace, "/tmp", "project: tmp")
+                },
+                Entry {
+                    workspace_id: Some("w2".into()),
+                    ..entry(Source::Workspace, "/tmp", "dir: tmp")
+                },
+            ],
+        );
+
+        assert_eq!(entries.len(), 2);
     }
 }

@@ -260,9 +260,19 @@ fn preview_text(app: &App, e: &Entry) -> String {
     if let Some(target) = &e.agent_target {
         lines.push(format!("agent target: {target}"));
     }
-    let key = e.key();
-    if let Some(id) = app.path_to_workspace.get(&key) {
-        lines.push(format!("existing workspace: {id}"));
+    let workspaces = app.workspaces_for_entry(e);
+    if !workspaces.is_empty() {
+        lines.push("existing workspaces:".into());
+        for ws in workspaces {
+            lines.push(format!(
+                "  - {} [{}] tabs:{} panes:{} {}",
+                ws.id,
+                ws.label,
+                ws.tab_count,
+                ws.pane_count,
+                ws.path.display()
+            ));
+        }
     }
     if let Some(p) = &e.project {
         lines.push("".into());
@@ -277,9 +287,14 @@ fn preview_text(app: &App, e: &Entry) -> String {
         Source::Workspace => "focus existing workspace",
         Source::Agent => "focus agent pane",
         Source::QuickAction => "open Herdr Plus quick actions",
-        _ if app.path_to_workspace.contains_key(&key) => "focus existing workspace",
-        Source::Project => "create workspace + project tabs",
-        _ => "create workspace",
+        Source::Project if app.matching_project_workspace(e).is_some() => {
+            "focus matching project workspace"
+        }
+        Source::Project => "create project workspace + tabs",
+        Source::Zoxide | Source::Root if app.matching_dir_workspace(e).is_some() => {
+            "focus matching dir workspace"
+        }
+        Source::Zoxide | Source::Root => "create dir workspace",
     };
     lines.push(format!("enter: {action}"));
     lines.join("\n")

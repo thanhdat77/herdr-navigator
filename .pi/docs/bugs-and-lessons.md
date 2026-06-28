@@ -72,3 +72,14 @@ rg "herdr-picker-plus|fenix.workdir-picker" ~/.config/herdr/config.toml /home/fe
 Project reuse depends on canonical cwd matching `working_dir`. If paths differ by symlink/case/relative expansion, reuse may fail and a duplicate workspace can be created.
 
 Keep `canonical_str()` logic conservative. If bugs appear, first inspect `pane list` cwd/foreground_cwd and project `working_dir`.
+
+
+## Same cwd workspaces were deduped incorrectly
+
+Symptom: when a Herdr Plus project and a normal dir workspace used the same cwd, choosing the other source focused the already-open workspace instead of creating/focusing the matching kind. Multiple open workspaces with the same cwd also could collapse to one row.
+
+Root cause: picker used `canonical_path -> workspace_id`, losing workspace multiplicity and source intent.
+
+Fix: store `canonical_path -> Vec<WorkspaceRef>`, infer workspace kind from labels (`project:` / `dir:`), do source-specific reuse, and keep workspace rows unique by workspace id.
+
+Lesson: in Herdr, same cwd does not mean same workspace. Picker identity must include workspace id and source/kind.

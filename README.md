@@ -13,7 +13,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 ### What makes it stand out
 
 - **Picker center for Herdr**: one place to search workspaces, projects, directories, agents, and actions.
-- **Reuse-first workflow**: if the target path is already open, it focuses the existing workspace instead of creating duplicates.
+- **Reuse-first workflow**: focuses matching open workspaces without confusing project and directory workspaces that share the same path.
 - **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
 - **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
@@ -24,7 +24,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 
 | Source | Reads | Enter |
 | --- | --- | --- |
-| `workspace` | `herdr workspace list` + pane cwd | focus workspace |
+| `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
@@ -300,8 +300,8 @@ When Herdr Plus is installed:
   ```
 
 - selecting a project:
-  - focuses an existing workspace when the project path is already open
-  - otherwise creates a new workspace
+  - focuses an existing `project:` workspace when the project path is already open
+  - otherwise creates a new `project:` workspace
   - applies the project's tabs and startup commands
 
 - `quick` opens the Herdr Plus Quick Actions picker.
