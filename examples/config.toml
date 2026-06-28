@@ -1,7 +1,11 @@
+# Backward-compatible example. Prefer examples/default-config.toml.
+
 [picker]
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
+source_order = ["workspace", "project", "zoxide", "root", "agent"]
+source_priority_boost = 25
 
 [sources]
 open_workspaces = true
@@ -11,7 +15,6 @@ roots = true
 agents = true
 
 [theme]
-# Reads ~/.config/herdr/config.toml [theme.custom] and falls back to Catppuccin.
 inherit_herdr = true
 
 [[roots]]

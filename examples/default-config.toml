@@ -1,0 +1,57 @@
+# Herdr Workdir Picker default config
+# Location after first run:
+#   $(herdr plugin config-dir fenix.workdir-picker)/config.toml
+
+[picker]
+# What happens after selecting an entry:
+# - true: focus an already-open workspace for the selected path
+# - false: always use create_missing behavior
+reuse_existing = true
+
+# Create a new Herdr workspace when the selected path is not open yet.
+create_missing = true
+
+# Search engine: "nucleo" | "skim" | "simple"
+# - nucleo: best default; fast, fzf-like scoring, good Unicode support
+# - skim: skim/fzf-style matcher via fuzzy-matcher crate
+# - simple: tiny built-in ordered-character matcher for debugging
+engine = "nucleo"
+
+# Source priority controls initial ordering and tie/near-tie ranking.
+# Accepted names: workspace/open, project, zoxide, root, agent.
+source_order = ["workspace", "project", "zoxide", "root", "agent"]
+
+# How strongly source_order influences search ranking.
+# Set 0 for pure matcher score.
+source_priority_boost = 25
+
+[sources]
+# Existing Herdr workspaces. Selecting focuses the workspace.
+open_workspaces = true
+
+# Herdr Plus project templates from:
+# ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml
+herdr_plus_projects = true
+
+# zoxide history from `zoxide query -l`.
+zoxide = true
+
+# Direct filesystem scan of [[roots]] below.
+roots = true
+
+# Agent panes from Herdr pane metadata. Selecting focuses the agent.
+agents = true
+
+[theme]
+# Reads ~/.config/herdr/config.toml [theme.custom] tokens when available.
+# Falls back to the built-in Catppuccin-like palette.
+inherit_herdr = true
+
+# Keep roots short; zoxide should handle most frequent directories.
+[[roots]]
+path = "~/workspace"
+max_depth = 3
+
+[[roots]]
+path = "~/projects"
+max_depth = 3

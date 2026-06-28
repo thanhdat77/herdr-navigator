@@ -26,6 +26,8 @@ use ratatui::{
 use serde::Deserialize;
 use serde_json::Value;
 
+const DEFAULT_CONFIG: &str = include_str!("../examples/default-config.toml");
+
 fn main() {
     match env::args().nth(1).as_deref() {
         Some("open") => open_picker(),
@@ -197,6 +199,18 @@ impl Source {
             Source::Agent => "agent",
         }
     }
+
+    fn from_config(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "workspace" | "workspaces" | "open" | "open_workspaces" => Some(Source::Workspace),
+            "project" | "projects" | "herdr_plus_projects" => Some(Source::Project),
+            "zoxide" | "z" => Some(Source::Zoxide),
+            "root" | "roots" | "scan" => Some(Source::Root),
+            "agent" | "agents" => Some(Source::Agent),
+            _ => None,
+        }
+    }
+
     fn all() -> [Source; 5] {
         [
             Source::Workspace,
@@ -298,20 +312,21 @@ impl App {
                 }
             }
             let hay = e.haystack();
+            let source_bonus = self.config.picker.source_bonus(&e.source);
             if q.is_empty() {
-                scored.push((0, idx));
+                scored.push((source_bonus, idx));
             } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &q) {
-                scored.push((score, idx));
+                scored.push((score + source_bonus, idx));
             }
         }
         scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
             score_b
                 .cmp(score_a)
                 .then_with(|| {
-                    self.entries[*idx_a]
-                        .source
-                        .label()
-                        .cmp(self.entries[*idx_b].source.label())
+                    self.config
+                        .picker
+                        .source_rank(&self.entries[*idx_a].source)
+                        .cmp(&self.config.picker.source_rank(&self.entries[*idx_b].source))
                 })
                 .then_with(|| self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title))
         });
@@ -645,6 +660,10 @@ struct PickerConfig {
     create_missing: bool,
     #[serde(default = "default_engine")]
     engine: String,
+    #[serde(default = "default_source_order")]
+    source_order: Vec<String>,
+    #[serde(default = "default_source_priority_boost")]
+    source_priority_boost: i64,
 }
 #[derive(Clone, Deserialize)]
 struct SourcesConfig {
@@ -679,6 +698,15 @@ fn default_depth() -> usize {
 fn default_engine() -> String {
     "nucleo".into()
 }
+fn default_source_order() -> Vec<String> {
+    ["workspace", "project", "zoxide", "root", "agent"]
+        .into_iter()
+        .map(String::from)
+        .collect()
+}
+fn default_source_priority_boost() -> i64 {
+    25
+}
 
 impl Default for PickerConfig {
     fn default() -> Self {
@@ -686,7 +714,25 @@ impl Default for PickerConfig {
             reuse_existing: true,
             create_missing: true,
             engine: default_engine(),
+            source_order: default_source_order(),
+            source_priority_boost: default_source_priority_boost(),
         }
+    }
+}
+
+impl PickerConfig {
+    fn source_rank(&self, source: &Source) -> usize {
+        self.source_order
+            .iter()
+            .filter_map(|name| Source::from_config(name))
+            .position(|item| &item == source)
+            .unwrap_or_else(|| Source::all().len())
+    }
+
+    fn source_bonus(&self, source: &Source) -> i64 {
+        let rank = self.source_rank(source) as i64;
+        let total = Source::all().len() as i64;
+        (total - rank).max(0) * self.source_priority_boost
     }
 }
 impl Default for SourcesConfig {
@@ -737,30 +783,7 @@ impl Config {
         let _ = fs::create_dir_all(&dir);
         let path = dir.join("config.toml");
         if !path.exists() {
-            let sample = r#"[picker]
-reuse_existing = true
-create_missing = true
-engine = "nucleo" # nucleo | skim | simple
-
-[sources]
-open_workspaces = true
-herdr_plus_projects = true
-zoxide = true
-roots = true
-agents = true
-
-[theme]
-inherit_herdr = true
-
-[[roots]]
-path = "~/workspace"
-max_depth = 3
-
-[[roots]]
-path = "~/projects"
-max_depth = 3
-"#;
-            let _ = fs::write(&path, sample);
+            let _ = fs::write(&path, DEFAULT_CONFIG);
         }
         fs::read_to_string(path)
             .ok()
