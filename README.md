@@ -190,7 +190,6 @@ If Herdr Plus is not installed, those sources simply do not add useful entries.
 Make sure Herdr is linked to the current plugin id and your keybinding uses `herdr-picker-plus.open`:
 
 ```bash
-herdr plugin unlink fenix.workdir-picker 2>/dev/null || true
 herdr plugin link "$PWD"
 herdr server reload-config
 herdr plugin action list --plugin herdr-picker-plus
