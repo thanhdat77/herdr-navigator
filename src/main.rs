@@ -135,6 +135,7 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Action {
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         match key.code {
             KeyCode::Char('a') => app.set_filter(Some(Source::Agent)),
+            KeyCode::Char('q') => app.set_filter(Some(Source::QuickAction)),
             KeyCode::Char('w') => app.set_filter(Some(Source::Workspace)),
             KeyCode::Char('p') => app.set_filter(Some(Source::Project)),
             KeyCode::Char('z') => app.set_filter(Some(Source::Zoxide)),
@@ -187,6 +188,7 @@ enum Source {
     Zoxide,
     Root,
     Agent,
+    QuickAction,
 }
 
 impl Source {
@@ -197,6 +199,7 @@ impl Source {
             Source::Zoxide => "zoxide",
             Source::Root => "root",
             Source::Agent => "agent",
+            Source::QuickAction => "quick",
         }
     }
 
@@ -207,17 +210,21 @@ impl Source {
             "zoxide" | "z" => Some(Source::Zoxide),
             "root" | "roots" | "scan" => Some(Source::Root),
             "agent" | "agents" => Some(Source::Agent),
+            "quick" | "quick_action" | "quick_actions" | "herdr_plus_quick_actions" => {
+                Some(Source::QuickAction)
+            }
             _ => None,
         }
     }
 
-    fn all() -> [Source; 5] {
+    fn all() -> [Source; 6] {
         [
             Source::Workspace,
             Source::Project,
             Source::Zoxide,
             Source::Root,
             Source::Agent,
+            Source::QuickAction,
         ]
     }
 }
@@ -297,6 +304,9 @@ impl App {
         }
         if self.config.sources.agents {
             entries.extend(collect_agents());
+        }
+        if self.config.sources.herdr_plus_quick_actions && herdr_plus_quick_actions_dir().is_dir() {
+            entries.push(quick_actions_entry());
         }
 
         self.entries = entries;
@@ -383,6 +393,12 @@ impl App {
                 run_herdr(["workspace", "focus", id])
             }
             Source::Project => self.open_project(e),
+            Source::QuickAction => run_herdr([
+                "plugin",
+                "action",
+                "invoke",
+                "cloudmanic.herdr-plus.quick-actions",
+            ]),
             Source::Zoxide | Source::Root => self.focus_or_create(&e.path, &e.title),
         }
     }
@@ -498,7 +514,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "Ctrl-W workspace  Ctrl-P project  Ctrl-Z zoxide  Ctrl-R roots  Ctrl-A agents  Ctrl-O preview  Ctrl-U clear  Tab cycle  Enter open  Esc quit";
+    let help = "Ctrl-W workspace  Ctrl-P project  Ctrl-Q quick  Ctrl-Z zoxide  Ctrl-R roots  Ctrl-A agents  Ctrl-O preview  Ctrl-U clear  Tab cycle  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
@@ -594,6 +610,7 @@ fn preview_text(app: &App, e: &Entry) -> String {
     let action: &str = match e.source {
         Source::Workspace => "focus existing workspace",
         Source::Agent => "focus agent pane",
+        Source::QuickAction => "open Herdr Plus quick actions",
         _ if app.path_to_workspace.contains_key(&key) => "focus existing workspace",
         Source::Project => "create workspace + project tabs",
         _ => "create workspace",
@@ -609,6 +626,7 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Zoxide => theme.blue,
         Source::Root => theme.teal,
         Source::Agent => theme.yellow,
+        Source::QuickAction => theme.peach,
     }
 }
 
@@ -685,6 +703,8 @@ struct SourcesConfig {
     roots: bool,
     #[serde(default = "yes")]
     agents: bool,
+    #[serde(default = "yes")]
+    herdr_plus_quick_actions: bool,
 }
 #[derive(Clone, Deserialize)]
 struct ThemeConfig {
@@ -707,7 +727,7 @@ fn default_engine() -> String {
     "nucleo".into()
 }
 fn default_source_order() -> Vec<String> {
-    ["workspace", "project", "zoxide", "root", "agent"]
+    ["workspace", "project", "zoxide", "root", "agent", "quick"]
         .into_iter()
         .map(String::from)
         .collect()
@@ -751,6 +771,7 @@ impl Default for SourcesConfig {
             zoxide: true,
             roots: true,
             agents: true,
+            herdr_plus_quick_actions: true,
         }
     }
 }
@@ -1211,6 +1232,18 @@ fn collect_projects() -> Vec<Entry> {
     out
 }
 
+fn quick_actions_entry() -> Entry {
+    Entry {
+        source: Source::QuickAction,
+        title: "Herdr Plus Quick Actions".into(),
+        subtitle: "open the Herdr Plus quick-action picker".into(),
+        path: env::current_dir().unwrap_or_else(|_| home()),
+        workspace_id: None,
+        agent_target: None,
+        project: None,
+    }
+}
+
 fn collect_zoxide() -> Vec<Entry> {
     let Ok(out) = Command::new("zoxide").args(["query", "-l"]).output() else {
         return vec![];
@@ -1326,6 +1359,9 @@ fn plugin_config_dir() -> PathBuf {
 }
 fn herdr_plus_projects_dir() -> PathBuf {
     home().join(".config/herdr/plugins/config/cloudmanic.herdr-plus/projects")
+}
+fn herdr_plus_quick_actions_dir() -> PathBuf {
+    home().join(".config/herdr/plugins/config/cloudmanic.herdr-plus/quick-actions")
 }
 fn home() -> PathBuf {
     env::var("HOME")

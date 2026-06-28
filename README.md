@@ -2,7 +2,7 @@
 
 A Herdr-native command palette for jumping to work directories.
 
-It opens as a Herdr plugin overlay, searches across open workspaces, Herdr Plus projects, zoxide history, configured roots, and agents, then focuses an existing workspace or creates a new one.
+It opens as a Herdr plugin overlay, searches across open workspaces, Herdr Plus projects, Herdr Plus Quick Actions, zoxide history, configured roots, and agents, then focuses an existing workspace, creates a new one, or opens the Quick Actions picker.
 
 ```text
 prefix+t -> search -> Enter -> focus existing workspace or create workspace
@@ -19,7 +19,9 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 - Preview panel similar to `tv`
 - Configurable search engine: `nucleo`, `skim`, or `simple`
 - Configurable source priority order
-- Reads Herdr Plus project templates when installed
+- Integrates with Herdr Plus Projects and Quick Actions when installed
+- Opens Herdr Plus project templates directly from this picker
+- Opens Herdr Plus Quick Actions from this picker
 - Inherits supported Herdr theme names and custom theme tokens
 - No dependency on external picker TUIs like `fzf` or `tv`
 
@@ -29,6 +31,7 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
+| `quick` | Herdr Plus Quick Actions | open the Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
 | `agent` | agent panes from `herdr pane list` | focus agent |
@@ -47,6 +50,7 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 | `Ctrl-Z` | show zoxide only |
 | `Ctrl-R` | show root scan only |
 | `Ctrl-A` | show agents only |
+| `Ctrl-Q` | show Herdr Plus Quick Actions only |
 | `Ctrl-O` | toggle preview panel |
 | `Ctrl-U` | clear query and filter |
 
@@ -116,7 +120,7 @@ On first run, the plugin creates `config.toml` from [`examples/default-config.to
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["workspace", "project", "zoxide", "root", "agent"]
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
 source_priority_boost = 25
 
 [sources]
@@ -125,6 +129,7 @@ herdr_plus_projects = true
 zoxide = true
 roots = true
 agents = true
+herdr_plus_quick_actions = true
 
 [theme]
 inherit_herdr = true
@@ -157,7 +162,7 @@ Currently supported built-in names: `one-light`, `catppuccin`, `rose-pine`, `ros
 `source_order` controls source priority. Earlier sources get a ranking bonus and appear first on an empty query.
 
 ```toml
-source_order = ["workspace", "project", "zoxide", "root", "agent"]
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
 source_priority_boost = 25
 ```
 
@@ -170,7 +175,7 @@ source_priority_boost = 0
 Accepted names:
 
 ```text
-workspace, open, project, zoxide, root, agent
+workspace, open, project, zoxide, root, agent, quick
 ```
 
 ## Project quality

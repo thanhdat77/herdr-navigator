@@ -1,8 +1,8 @@
 id = "herdr-picker-plus"
 name = "Picker Plus"
-version = "0.1.0"
+version = "0.1.1"
 min_herdr_version = "0.7.0"
-description = "Herdr-native picker plus: search workspaces, agents, Herdr Plus projects, zoxide, and roots; then focus or create workspaces."
+description = "Herdr-native picker plus: search workspaces, agents, Herdr Plus projects, Herdr Plus Quick Actions, zoxide, and roots; then focus or create workspaces."
 platforms = ["linux", "macos"]
 
 [[build]]

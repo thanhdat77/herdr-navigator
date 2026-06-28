@@ -18,8 +18,8 @@ create_missing = true
 engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
-# Accepted names: workspace/open, project, zoxide, root, agent.
-source_order = ["workspace", "project", "zoxide", "root", "agent"]
+# Accepted names: workspace/open, project, zoxide, root, agent, quick.
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
@@ -41,6 +41,9 @@ roots = true
 
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
+
+# Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
+herdr_plus_quick_actions = true
 
 [theme]
 # Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.

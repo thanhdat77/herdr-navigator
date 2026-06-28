@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-28
+
+### Added
+- Herdr Plus Quick Actions launcher entry.
+
 ## [0.1.0] - 2026-06-28
 
 ### Added
