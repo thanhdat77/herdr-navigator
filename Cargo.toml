@@ -2,6 +2,12 @@
 name = "herdr-workdir-picker"
 version = "0.1.0"
 edition = "2021"
+description = "Herdr-native overlay picker for workdirs, workspaces, zoxide, projects, and agents"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/thanhdat77/herdr-picker-plus"
+keywords = ["herdr", "terminal", "tui", "workspace", "picker"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 crossterm = "0.29"

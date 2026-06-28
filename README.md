@@ -1,5 +1,8 @@
 # Herdr Workdir Picker
 
+[![CI](https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A Herdr-native command palette for jumping to work directories.
 
 It opens as a Herdr plugin overlay, searches across open workspaces, Herdr Plus projects, zoxide history, configured roots, and agents, then focuses an existing workspace or creates a new one.
@@ -20,7 +23,7 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 - Configurable search engine: `nucleo`, `skim`, or `simple`
 - Configurable source priority order
 - Reads Herdr Plus project templates when installed
-- Uses Herdr theme custom tokens where available
+- Inherits supported Herdr theme names and custom theme tokens
 - No dependency on external picker TUIs like `fzf` or `tv`
 
 ## Sources
@@ -50,12 +53,29 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 | `Ctrl-O` | toggle preview panel |
 | `Ctrl-U` | clear query and filter |
 
-## Local install
+## Requirements
+
+- Herdr `0.7.0` or newer
+- `zoxide` for the zoxide source
+- Rust stable when building from source
+
+## Install
+
+### From source
 
 ```bash
-cd /home/fenix/workspace/herdr-workdir-picker
+git clone https://github.com/thanhdat77/herdr-picker-plus.git
+cd herdr-workdir-picker
 cargo build --release
-herdr plugin link /home/fenix/workspace/herdr-workdir-picker
+herdr plugin link "$PWD"
+```
+
+### From a release archive
+
+Download the archive for your platform from GitHub Releases, extract it, then link the extracted directory:
+
+```bash
+herdr plugin link /path/to/herdr-workdir-picker
 ```
 
 Run once without binding:
@@ -129,6 +149,12 @@ max_depth = 3
 | `skim` | compare against skim/fzf-style scoring |
 | `simple` | debugging; tiny ordered-character matcher |
 
+### Theme
+
+`inherit_herdr = true` reads `~/.config/herdr/config.toml`, uses supported built-in theme names, then applies `[theme.custom]` overrides. If Herdr config is unavailable, the picker falls back to One Light.
+
+Currently supported built-in names: `one-light`, `catppuccin`, `rose-pine`, `rose-pine-dawn`, `terminal`.
+
 ### Source priority
 
 `source_order` controls source priority. Earlier sources get a ranking bonus and appear first on an empty query.
@@ -149,6 +175,13 @@ Accepted names:
 ```text
 workspace, open, project, zoxide, root, agent
 ```
+
+## Project quality
+
+- MIT licensed
+- CI runs format, clippy, tests, and release build
+- Tagged releases build Linux and macOS archives
+- See [`CHANGELOG.md`](CHANGELOG.md), [`RELEASE.md`](RELEASE.md), and [`SECURITY.md`](SECURITY.md)
 
 ## Debugging
 
@@ -172,4 +205,6 @@ herdr plugin unlink fenix.workdir-picker
 
 ## Design notes
 
-Herdr plugin v1 does not expose a native non-terminal custom UI API. This plugin follows the current Herdr-native pattern used by other plugins: an action opens a managed overlay pane, and the interactive TUI runs inside that pane.
+Herdr plugin v1 does not expose the active theme palette directly to external plugins. The picker reads Herdr config and maps supported theme names locally, with `[theme.custom]` overrides applied last.
+
+Herdr plugin v1 also does not expose a native non-terminal custom UI API. This plugin follows the current Herdr-native pattern used by other plugins: an action opens a managed overlay pane, and the interactive TUI runs inside that pane.

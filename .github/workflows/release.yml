@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+          - os: macos-latest
+            name: macos-aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist/herdr-workdir-picker
+          cp target/release/herdr-workdir-picker dist/herdr-workdir-picker/
+          cp README.md LICENSE CHANGELOG.md herdr-plugin.toml dist/herdr-workdir-picker/
+          cp -R examples dist/herdr-workdir-picker/
+          tar -C dist -czf herdr-workdir-picker-${{ matrix.name }}.tar.gz herdr-workdir-picker
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: herdr-workdir-picker-${{ matrix.name }}.tar.gz
+          generate_release_notes: true

@@ -43,8 +43,8 @@ roots = true
 agents = true
 
 [theme]
-# Reads ~/.config/herdr/config.toml [theme.custom] tokens when available.
-# Falls back to the built-in Catppuccin-like palette.
+# Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.
+# Falls back to the built-in One Light palette.
 inherit_herdr = true
 
 # Keep roots short; zoxide should handle most frequent directories.
