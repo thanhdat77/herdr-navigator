@@ -1,36 +1,26 @@
 # Herdr Picker Plus
 
-A Herdr-native picker center for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
+Herdr Picker Plus is a Herdr-native **picker center**: one overlay for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
 
 ```text
 prefix+t -> search -> Enter
 ```
 
-## What it does
+It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of only selecting a path, it can focus existing Herdr state, create workspaces, apply Herdr Plus project layouts, focus agents, and launch Herdr Plus Quick Actions.
 
-Herdr's built-in `prefix+g` is great for navigating things that already exist. Herdr Picker Plus is a picker center for the `sesh` / `Ctrl-T` workflow: start from a project, directory, agent, or Herdr Plus action, then land in the right Herdr context.
+## Overview
 
-It can:
+### What makes it stand out
 
-- focus an already-open workspace
-- open a Herdr Plus project template
-- create a new workspace from zoxide or configured roots
-- focus an agent pane
-- launch Herdr Plus Quick Actions
+- **Picker center for Herdr**: one place to search workspaces, projects, directories, agents, and actions.
+- **Reuse-first workflow**: if the target path is already open, it focuses the existing workspace instead of creating duplicates.
+- **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
+- **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
+- **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
+- **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
+- **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
 
-## Features
-
-- Herdr plugin action + Herdr-managed overlay pane
-- Rust TUI built with `ratatui` and `crossterm`
-- Preview panel for the selected entry
-- Configurable matcher: `nucleo`, `skim`, or `simple`
-- Configurable source priority order
-- Herdr Plus Projects integration
-- Herdr Plus Quick Actions integration
-- Herdr theme-name inheritance with `[theme.custom]` overrides
-- No external picker dependency (`fzf`, `tv`, etc.)
-
-## Sources
+### Sources
 
 | Source | Reads | Enter |
 | --- | --- | --- |
@@ -41,7 +31,112 @@ It can:
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
 | `agent` | agent panes from `herdr pane list` | focus agent pane |
 
-## Keybindings
+## Requirements
+
+Required:
+
+- Herdr `0.7.0` or newer
+
+Required only when building from source:
+
+- Rust stable
+- Cargo
+
+Optional integrations:
+
+- `zoxide` for the `zoxide` source
+- Herdr Plus for the `project` and `quick` sources
+
+## Install
+
+Choose one install path.
+
+### Option A: install from release archive
+
+1. Download the archive for your platform from the GitHub Release page.
+2. Extract it somewhere stable, for example:
+
+   ```bash
+   mkdir -p ~/.local/share/herdr/plugins
+   tar -xzf herdr-picker-plus-linux-x86_64.tar.gz -C ~/.local/share/herdr/plugins
+   ```
+
+3. Link the extracted plugin directory:
+
+   ```bash
+   herdr plugin link ~/.local/share/herdr/plugins/herdr-picker-plus
+   ```
+
+4. Verify Herdr sees the plugin:
+
+   ```bash
+   herdr plugin list
+   herdr plugin action list --plugin herdr-picker-plus
+   ```
+
+### Option B: install from source
+
+1. Clone the repo:
+
+   ```bash
+   git clone <repo-url>
+   cd herdr-picker-plus
+   ```
+
+2. Build the binary:
+
+   ```bash
+   cargo build --release
+   ```
+
+3. Link the local plugin directory:
+
+   ```bash
+   herdr plugin link "$PWD"
+   ```
+
+4. Verify:
+
+   ```bash
+   herdr plugin list
+   herdr plugin action list --plugin herdr-picker-plus
+   ```
+
+## First run
+
+Run the picker once without a keybinding:
+
+```bash
+herdr plugin action invoke herdr-picker-plus.open
+```
+
+If the overlay opens, installation is working.
+
+## Add a keybinding
+
+Add this to `~/.config/herdr/config.toml`:
+
+```toml
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-picker-plus.open"
+description = "picker center"
+```
+
+Reload Herdr:
+
+```bash
+herdr server reload-config
+```
+
+Now use:
+
+```text
+prefix+t
+```
+
+## Usage
 
 | Key | Action |
 | --- | --- |
@@ -59,56 +154,6 @@ It can:
 | `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
 
-## Requirements
-
-- Herdr `0.7.0` or newer
-- Rust stable when building from source
-- Optional: `zoxide` for the zoxide source
-- Optional: Herdr Plus for `project` and `quick` sources
-
-## Install
-
-### From source
-
-```bash
-git clone <repo-url>
-cd herdr-picker-plus
-cargo build --release
-herdr plugin link "$PWD"
-```
-
-### From release archive
-
-Download the archive for your platform, extract it, then link the extracted directory:
-
-```bash
-herdr plugin link /path/to/herdr-picker-plus
-```
-
-Run once without a keybinding:
-
-```bash
-herdr plugin action invoke herdr-picker-plus.open
-```
-
-## Bind to `prefix+t`
-
-Add this to `~/.config/herdr/config.toml`:
-
-```toml
-[[keys.command]]
-key = "prefix+t"
-type = "plugin_action"
-command = "herdr-picker-plus.open"
-description = "picker plus"
-```
-
-Reload Herdr:
-
-```bash
-herdr server reload-config
-```
-
 ## Configuration
 
 Find the plugin config directory:
@@ -118,6 +163,8 @@ herdr plugin config-dir herdr-picker-plus
 ```
 
 On first run, the plugin creates `config.toml` from [`examples/default-config.toml`](examples/default-config.toml).
+
+### Default config
 
 ```toml
 [picker]
@@ -147,9 +194,33 @@ path = "~/projects"
 max_depth = 3
 ```
 
-### Source priority
+## Customize
 
-`source_order` controls initial ordering and ranking bonuses. Accepted names:
+### Choose sources
+
+Disable sources you do not use:
+
+```toml
+[sources]
+open_workspaces = true
+herdr_plus_projects = false
+herdr_plus_quick_actions = false
+zoxide = true
+roots = true
+agents = true
+```
+
+### Change source priority
+
+Earlier sources get a ranking bonus and appear first on an empty query:
+
+```toml
+[picker]
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
+source_priority_boost = 25
+```
+
+Accepted names:
 
 ```text
 workspace, open, project, zoxide, root, agent, quick
@@ -161,9 +232,54 @@ Set the boost to zero for pure matcher score:
 source_priority_boost = 0
 ```
 
-### Theme
+### Change search engine
 
-`inherit_herdr = true` reads `~/.config/herdr/config.toml`, maps supported theme names locally, then applies `[theme.custom]` overrides.
+```toml
+[picker]
+engine = "nucleo" # nucleo | skim | simple
+```
+
+| Engine | Use when |
+| --- | --- |
+| `nucleo` | default; fast, fzf-like ranking, good Unicode behavior |
+| `skim` | compare against skim/fzf-style scoring |
+| `simple` | tiny built-in ordered-character matcher for debugging |
+
+### Add root directories
+
+Use roots for broad directory scanning. Keep this list short; zoxide should cover frequent directories.
+
+```toml
+[[roots]]
+path = "~/workspace"
+max_depth = 3
+
+[[roots]]
+path = "~/projects"
+max_depth = 2
+```
+
+A directory becomes a root result if it contains one of:
+
+```text
+.git
+package.json
+Cargo.toml
+```
+
+### Theme behavior
+
+```toml
+[theme]
+inherit_herdr = true
+```
+
+When enabled, the picker:
+
+1. reads `~/.config/herdr/config.toml`
+2. maps supported `theme.name` values locally
+3. applies `[theme.custom]` overrides last
+4. falls back to One Light if Herdr config is unavailable
 
 Supported built-in names:
 
@@ -171,35 +287,24 @@ Supported built-in names:
 one-light, catppuccin, rose-pine, rose-pine-dawn, terminal
 ```
 
-If Herdr config is unavailable, the picker falls back to One Light.
-
 ## Herdr Plus integration
+
+Herdr Plus is optional. If it is not installed, Picker Plus still works with workspaces, zoxide, roots, and agents.
 
 When Herdr Plus is installed:
 
-- `project` entries are loaded from `~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml`
-- selecting a project creates/focuses a workspace and applies the project's tabs
-- `quick` opens the Herdr Plus Quick Actions picker
+- `project` entries are loaded from:
 
-If Herdr Plus is not installed, those sources simply do not add useful entries.
+  ```text
+  ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml
+  ```
 
-## Troubleshooting
+- selecting a project:
+  - focuses an existing workspace when the project path is already open
+  - otherwise creates a new workspace
+  - applies the project's tabs and startup commands
 
-### `prefix+t` opens an old picker or selecting projects does nothing
-
-Make sure Herdr is linked to the current plugin id and your keybinding uses `herdr-picker-plus.open`:
-
-```bash
-herdr plugin link "$PWD"
-herdr server reload-config
-herdr plugin action list --plugin herdr-picker-plus
-```
-
-Then verify `~/.config/herdr/config.toml` contains:
-
-```toml
-command = "herdr-picker-plus.open"
-```
+- `quick` opens the Herdr Plus Quick Actions picker.
 
 ## Debugging
 
@@ -215,23 +320,80 @@ Show plugin actions:
 herdr plugin action list --plugin herdr-picker-plus
 ```
 
+Show installed plugins:
+
+```bash
+herdr plugin list
+```
+
 Unlink local plugin:
 
 ```bash
 herdr plugin unlink herdr-picker-plus
 ```
 
-## Release
+## Troubleshooting
 
-This project ships tagged GitHub releases with Linux and macOS archives. See [`RELEASE.md`](RELEASE.md).
+### `prefix+t` does nothing
 
-## Security
+Check the keybinding command:
 
-See [`SECURITY.md`](SECURITY.md).
+```bash
+rg "herdr-picker-plus.open" ~/.config/herdr/config.toml
+herdr server reload-config
+```
 
-## Architecture
+Then verify the action exists:
 
-See [`docs/architecture.md`](docs/architecture.md) and [`docs/integrations.md`](docs/integrations.md).
+```bash
+herdr plugin action list --plugin herdr-picker-plus
+```
+
+### The old picker opens
+
+You may still have an old plugin linked or an old keybinding command. Relink the current plugin:
+
+```bash
+herdr plugin link "$PWD"
+herdr server reload-config
+herdr plugin list
+```
+
+Make sure your keybinding uses:
+
+```toml
+command = "herdr-picker-plus.open"
+```
+
+### Project entries do not appear
+
+Check Herdr Plus project files exist:
+
+```bash
+find ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects -name '*.toml'
+```
+
+Also check config:
+
+```toml
+[sources]
+herdr_plus_projects = true
+```
+
+### Zoxide entries do not appear
+
+Check `zoxide` is installed and has data:
+
+```bash
+zoxide query -l
+```
+
+## Project docs
+
+- [`docs/architecture.md`](docs/architecture.md): architecture and runtime flow
+- [`docs/integrations.md`](docs/integrations.md): integration patterns for Herdr and other plugins
+- [`RELEASE.md`](RELEASE.md): release process
+- [`SECURITY.md`](SECURITY.md): security policy
 
 ## Design notes
 
