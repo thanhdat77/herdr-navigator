@@ -1,0 +1,8 @@
+# Example Herdr keybinding for Picker Plus.
+# Add this to ~/.config/herdr/config.toml.
+
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-picker-plus.open"
+description = "picker center"

@@ -26,6 +26,23 @@ The plugin is intentionally a terminal TUI running inside a Herdr-managed overla
 | `herdr-picker-plus ui` | Run the interactive TUI inside that pane |
 | `herdr-picker-plus list` | Debug: print collected entries without opening TUI |
 
+## Code layout
+
+```text
+src/main.rs      CLI entrypoints
+src/app.rs       picker state, filtering, open dispatch
+src/tui.rs       terminal UI and key handling
+src/config.rs    plugin config loading and defaults
+src/model.rs     shared Source/Entry/Project models
+src/sources.rs   workspace/project/zoxide/root/agent/quick collectors
+src/herdr.rs     small Herdr CLI wrapper
+src/theme.rs     theme mapping and custom overrides
+src/matcher.rs   fuzzy scoring engines
+src/paths.rs     path/config helpers
+```
+
+Keep new integrations in `sources.rs` unless they grow enough to deserve their own module. Keep Herdr CLI calls behind `herdr.rs` where practical.
+
 ## Sources
 
 | Source | Input | Enter behavior |

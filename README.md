@@ -231,7 +231,7 @@ See [`SECURITY.md`](SECURITY.md).
 
 ## Architecture
 
-See [`docs/architecture.md`](docs/architecture.md).
+See [`docs/architecture.md`](docs/architecture.md) and [`docs/integrations.md`](docs/integrations.md).
 
 ## Design notes
 

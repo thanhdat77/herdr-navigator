@@ -1,5 +1,9 @@
 # Architecture Notes
 
+## Code layout
+
+Modules now split by responsibility: `main` CLI, `app` state/dispatch, `tui` rendering/input, `config`, `model`, `sources`, `herdr`, `theme`, `matcher`, `paths`. New source integrations usually start in `sources.rs`; move out only if they grow.
+
 ## Shape
 
 Single-file Rust TUI plugin:
