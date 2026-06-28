@@ -1,64 +1,70 @@
 # Herdr Picker Plus
 
-A Herdr-native command palette for jumping to work directories.
-
-It opens as a Herdr plugin overlay, searches across open workspaces, Herdr Plus projects, Herdr Plus Quick Actions, zoxide history, configured roots, and agents, then focuses an existing workspace, creates a new one, or opens the Quick Actions picker.
+A Herdr-native overlay picker for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
 
 ```text
-prefix+t -> search -> Enter -> focus existing workspace or create workspace
+prefix+t -> search -> Enter
 ```
 
-## Why this exists
+## What it does
 
-Herdr's built-in `prefix+g` is excellent for navigating things that already exist. This plugin is for the `sesh`/`Ctrl-T` style workflow: find a project directory first, then land in the right Herdr workspace.
+Herdr's built-in `prefix+g` is great for navigating things that already exist. Herdr Picker Plus is for the `sesh` / `Ctrl-T` workflow: start from a project or directory, then land in the right Herdr workspace.
+
+It can:
+
+- focus an already-open workspace
+- open a Herdr Plus project template
+- create a new workspace from zoxide or configured roots
+- focus an agent pane
+- launch Herdr Plus Quick Actions
 
 ## Features
 
 - Herdr plugin action + Herdr-managed overlay pane
 - Rust TUI built with `ratatui` and `crossterm`
-- Preview panel similar to `tv`
-- Configurable search engine: `nucleo`, `skim`, or `simple`
+- Preview panel for the selected entry
+- Configurable matcher: `nucleo`, `skim`, or `simple`
 - Configurable source priority order
-- Integrates with Herdr Plus Projects and Quick Actions when installed
-- Opens Herdr Plus project templates directly from this picker
-- Opens Herdr Plus Quick Actions from this picker
-- Inherits supported Herdr theme names and custom theme tokens
-- No dependency on external picker TUIs like `fzf` or `tv`
+- Herdr Plus Projects integration
+- Herdr Plus Quick Actions integration
+- Herdr theme-name inheritance with `[theme.custom]` overrides
+- No external picker dependency (`fzf`, `tv`, etc.)
 
 ## Sources
 
-| Source | What it reads | Enter behavior |
+| Source | Reads | Enter |
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
-| `quick` | Herdr Plus Quick Actions | open the Quick Actions picker |
+| `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
-| `agent` | agent panes from `herdr pane list` | focus agent |
+| `agent` | agent panes from `herdr pane list` | focus agent pane |
 
-## Keybindings inside the picker
+## Keybindings
 
 | Key | Action |
 | --- | --- |
 | type | fuzzy search |
-| `Enter` | open/focus selected item |
+| `Enter` | open selected item |
 | `Esc` / `Ctrl-C` | close |
 | `Up` / `Down` | move selection |
 | `Tab` | cycle source filters |
-| `Ctrl-W` | show workspaces only |
-| `Ctrl-P` | show Herdr Plus projects only |
-| `Ctrl-Z` | show zoxide only |
-| `Ctrl-R` | show root scan only |
-| `Ctrl-A` | show agents only |
-| `Ctrl-Q` | show Herdr Plus Quick Actions only |
-| `Ctrl-O` | toggle preview panel |
+| `Ctrl-W` | workspaces only |
+| `Ctrl-P` | Herdr Plus projects only |
+| `Ctrl-Q` | Herdr Plus Quick Actions only |
+| `Ctrl-Z` | zoxide only |
+| `Ctrl-R` | roots only |
+| `Ctrl-A` | agents only |
+| `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
 
 ## Requirements
 
 - Herdr `0.7.0` or newer
-- `zoxide` for the zoxide source
 - Rust stable when building from source
+- Optional: `zoxide` for the zoxide source
+- Optional: Herdr Plus for `project` and `quick` sources
 
 ## Install
 
@@ -71,15 +77,15 @@ cargo build --release
 herdr plugin link "$PWD"
 ```
 
-### From a release archive
+### From release archive
 
-Download the archive for your platform from GitHub Releases, extract it, then link the extracted directory:
+Download the archive for your platform, extract it, then link the extracted directory:
 
 ```bash
 herdr plugin link /path/to/herdr-picker-plus
 ```
 
-Run once without binding:
+Run once without a keybinding:
 
 ```bash
 herdr plugin action invoke herdr-picker-plus.open
@@ -87,7 +93,7 @@ herdr plugin action invoke herdr-picker-plus.open
 
 ## Bind to `prefix+t`
 
-Add to `~/.config/herdr/config.toml`:
+Add this to `~/.config/herdr/config.toml`:
 
 ```toml
 [[keys.command]]
@@ -105,15 +111,13 @@ herdr server reload-config
 
 ## Configuration
 
-Find the managed plugin config directory:
+Find the plugin config directory:
 
 ```bash
 herdr plugin config-dir herdr-picker-plus
 ```
 
 On first run, the plugin creates `config.toml` from [`examples/default-config.toml`](examples/default-config.toml).
-
-### Default config
 
 ```toml
 [picker]
@@ -126,10 +130,10 @@ source_priority_boost = 25
 [sources]
 open_workspaces = true
 herdr_plus_projects = true
+herdr_plus_quick_actions = true
 zoxide = true
 roots = true
 agents = true
-herdr_plus_quick_actions = true
 
 [theme]
 inherit_herdr = true
@@ -143,27 +147,12 @@ path = "~/projects"
 max_depth = 3
 ```
 
-### Search engines
-
-| Engine | Use when |
-| --- | --- |
-| `nucleo` | default; fast, fzf-like ranking, good Unicode behavior |
-| `skim` | compare against skim/fzf-style scoring |
-| `simple` | debugging; tiny ordered-character matcher |
-
-### Theme
-
-`inherit_herdr = true` reads `~/.config/herdr/config.toml`, uses supported built-in theme names, then applies `[theme.custom]` overrides. If Herdr config is unavailable, the picker falls back to One Light.
-
-Currently supported built-in names: `one-light`, `catppuccin`, `rose-pine`, `rose-pine-dawn`, `terminal`.
-
 ### Source priority
 
-`source_order` controls source priority. Earlier sources get a ranking bonus and appear first on an empty query.
+`source_order` controls initial ordering and ranking bonuses. Accepted names:
 
-```toml
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
-source_priority_boost = 25
+```text
+workspace, open, project, zoxide, root, agent, quick
 ```
 
 Set the boost to zero for pure matcher score:
@@ -172,18 +161,46 @@ Set the boost to zero for pure matcher score:
 source_priority_boost = 0
 ```
 
-Accepted names:
+### Theme
+
+`inherit_herdr = true` reads `~/.config/herdr/config.toml`, maps supported theme names locally, then applies `[theme.custom]` overrides.
+
+Supported built-in names:
 
 ```text
-workspace, open, project, zoxide, root, agent, quick
+one-light, catppuccin, rose-pine, rose-pine-dawn, terminal
 ```
 
-## Project quality
+If Herdr config is unavailable, the picker falls back to One Light.
 
-- MIT licensed
-- CI runs format, clippy, tests, and release build
-- Tagged releases build Linux and macOS archives
-- See [`CHANGELOG.md`](CHANGELOG.md), [`RELEASE.md`](RELEASE.md), and [`SECURITY.md`](SECURITY.md)
+## Herdr Plus integration
+
+When Herdr Plus is installed:
+
+- `project` entries are loaded from `~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml`
+- selecting a project creates/focuses a workspace and applies the project's tabs
+- `quick` opens the Herdr Plus Quick Actions picker
+
+If Herdr Plus is not installed, those sources simply do not add useful entries.
+
+## Troubleshooting
+
+### `prefix+t` opens an old picker or selecting projects does nothing
+
+Make sure Herdr is linked to the current plugin id and your keybinding uses `herdr-picker-plus.open`:
+
+```bash
+herdr plugin unlink fenix.workdir-picker 2>/dev/null || true
+herdr plugin link "$PWD"
+herdr server reload-config
+herdr plugin action list --plugin herdr-picker-plus
+```
+
+Then verify `~/.config/herdr/config.toml` contains:
+
+```toml
+command = "herdr-picker-plus.open"
+```
 
 ## Debugging
 
@@ -205,8 +222,16 @@ Unlink local plugin:
 herdr plugin unlink herdr-picker-plus
 ```
 
+## Release
+
+This project ships tagged GitHub releases with Linux and macOS archives. See [`RELEASE.md`](RELEASE.md).
+
+## Security
+
+See [`SECURITY.md`](SECURITY.md).
+
 ## Design notes
 
 Herdr plugin v1 does not expose the active theme palette directly to external plugins. The picker reads Herdr config and maps supported theme names locally, with `[theme.custom]` overrides applied last.
 
-Herdr plugin v1 also does not expose a native non-terminal custom UI API. This plugin follows the current Herdr-native pattern used by other plugins: an action opens a managed overlay pane, and the interactive TUI runs inside that pane.
+Herdr plugin v1 also does not expose a native non-terminal custom UI API. This plugin follows the current Herdr-native pattern: an action opens a managed overlay pane, and the interactive TUI runs inside that pane.
