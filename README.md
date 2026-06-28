@@ -6,7 +6,7 @@ Herdr-native picker for the workflow:
 search workdir -> focus existing workspace -> or create workspace
 ```
 
-Built like a Herdr extension: Rust + `ratatui`/`crossterm`, Herdr theme tokens, plugin action + overlay pane.
+Built like a Herdr extension: Rust + `ratatui`/`crossterm`, Herdr theme tokens, plugin action + overlay pane. Search engine is configurable: `nucleo`, `skim`, or `simple`.
 
 ## Features
 
@@ -55,6 +55,7 @@ Edit `config.toml`:
 [picker]
 reuse_existing = true
 create_missing = true
+engine = "nucleo" # nucleo | skim | simple
 
 [sources]
 open_workspaces = true

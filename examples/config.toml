@@ -1,6 +1,7 @@
 [picker]
 reuse_existing = true
 create_missing = true
+engine = "nucleo" # nucleo | skim | simple
 
 [sources]
 open_workspaces = true

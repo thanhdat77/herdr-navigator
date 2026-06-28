@@ -10,6 +10,11 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use nucleo_matcher::{
+    pattern::{CaseMatching, Normalization, Pattern},
+    Config as NucleoConfig, Matcher as NucleoMatcher, Utf32Str,
+};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -295,16 +300,20 @@ impl App {
             let hay = e.haystack();
             if q.is_empty() {
                 scored.push((0, idx));
-            } else if let Some(score) = fuzzy_score(&hay, &q) {
+            } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &q) {
                 scored.push((score, idx));
             }
         }
-        scored.sort_by_key(|(score, idx)| {
-            (
-                *score,
-                self.entries[*idx].source.label(),
-                self.entries[*idx].title.clone(),
-            )
+        scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
+            score_b
+                .cmp(score_a)
+                .then_with(|| {
+                    self.entries[*idx_a]
+                        .source
+                        .label()
+                        .cmp(self.entries[*idx_b].source.label())
+                })
+                .then_with(|| self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title))
         });
         self.filtered = scored.into_iter().map(|(_, idx)| idx).collect();
         if self.selected >= self.filtered.len() {
@@ -580,13 +589,28 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
     }
 }
 
-fn fuzzy_score(hay: &str, q: &str) -> Option<usize> {
+fn match_score(engine: &str, hay: &str, q: &str) -> Option<i64> {
+    match engine {
+        "skim" => SkimMatcherV2::default().fuzzy_match(hay, q),
+        "simple" => simple_fuzzy_score(hay, q).map(|score| -score),
+        _ => {
+            let mut matcher = NucleoMatcher::new(NucleoConfig::DEFAULT.match_paths());
+            let pattern = Pattern::parse(q, CaseMatching::Ignore, Normalization::Smart);
+            let mut buf = Vec::new();
+            pattern
+                .score(Utf32Str::new(hay, &mut buf), &mut matcher)
+                .map(|score| score as i64)
+        }
+    }
+}
+
+fn simple_fuzzy_score(hay: &str, q: &str) -> Option<i64> {
     let mut score = 0;
     let mut pos = 0;
     for qc in q.chars() {
         let rest = &hay[pos..];
         let found = rest.find(qc)?;
-        score += found;
+        score += found as i64;
         pos += found + qc.len_utf8();
     }
     Some(score)
@@ -619,6 +643,8 @@ struct PickerConfig {
     reuse_existing: bool,
     #[serde(default = "yes")]
     create_missing: bool,
+    #[serde(default = "default_engine")]
+    engine: String,
 }
 #[derive(Clone, Deserialize)]
 struct SourcesConfig {
@@ -650,12 +676,16 @@ fn yes() -> bool {
 fn default_depth() -> usize {
     3
 }
+fn default_engine() -> String {
+    "nucleo".into()
+}
 
 impl Default for PickerConfig {
     fn default() -> Self {
         Self {
             reuse_existing: true,
             create_missing: true,
+            engine: default_engine(),
         }
     }
 }
@@ -710,6 +740,7 @@ impl Config {
             let sample = r#"[picker]
 reuse_existing = true
 create_missing = true
+engine = "nucleo" # nucleo | skim | simple
 
 [sources]
 open_workspaces = true
