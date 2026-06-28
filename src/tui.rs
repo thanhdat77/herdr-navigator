@@ -16,7 +16,7 @@ use ratatui::{
 
 use crate::{
     app::App,
-    model::{Entry, Source},
+    model::{Entry, EntryAction, Source},
     theme::Theme,
 };
 
@@ -200,7 +200,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
             let color = source_color(&app.theme, &e.source);
             ListItem::new(Line::from(vec![
                 Span::styled(
-                    format!("[{:<7}] ", e.source.label()),
+                    format!("[{:<7}] ", truncate(e.source_name(), 7)),
                     Style::default().fg(color),
                 ),
                 Span::styled(&e.title, Style::default().fg(app.theme.text)),
@@ -247,7 +247,7 @@ fn draw_preview(f: &mut Frame, app: &App, area: Rect) {
 
 fn preview_text(app: &App, e: &Entry) -> String {
     let mut lines = vec![
-        format!("type: {}", e.source.label()),
+        format!("type: {}", e.source_name()),
         format!("title: {}", e.title),
         format!("path: {}", e.path.display()),
     ];
@@ -283,21 +283,26 @@ fn preview_text(app: &App, e: &Entry) -> String {
         }
     }
     lines.push("".into());
-    let action: &str = match e.source {
-        Source::Workspace => "focus existing workspace",
-        Source::Agent => "focus agent pane",
-        Source::QuickAction => "open Herdr Plus quick actions",
-        Source::Project if app.matching_project_workspace(e).is_some() => {
+    let action: &str = match &e.action {
+        EntryAction::FocusWorkspace { .. } => "focus existing workspace",
+        EntryAction::FocusAgent { .. } => "focus agent pane",
+        EntryAction::InvokePluginAction { .. } => "invoke Herdr plugin action",
+        EntryAction::RunCommand { .. } => "run integration command",
+        EntryAction::OpenProject if app.matching_project_workspace(e).is_some() => {
             "focus matching project workspace"
         }
-        Source::Project => "create project workspace + tabs",
-        Source::Zoxide | Source::Root if app.matching_dir_workspace(e).is_some() => {
+        EntryAction::OpenProject => "create project workspace + tabs",
+        EntryAction::FocusOrCreateDir if app.matching_dir_workspace(e).is_some() => {
             "focus matching dir workspace"
         }
-        Source::Zoxide | Source::Root => "create dir workspace",
+        EntryAction::FocusOrCreateDir => "create dir workspace",
     };
     lines.push(format!("enter: {action}"));
     lines.join("\n")
+}
+
+fn truncate(value: &str, max: usize) -> String {
+    value.chars().take(max).collect()
 }
 
 fn source_color(theme: &Theme, source: &Source) -> Color {
@@ -308,5 +313,6 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Root => theme.teal,
         Source::Agent => theme.yellow,
         Source::QuickAction => theme.peach,
+        Source::Integration => theme.red,
     }
 }

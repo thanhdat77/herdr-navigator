@@ -37,3 +37,9 @@ Local mapping + custom override is the accepted solution for now.
 ## Simplicity bias
 
 This project should stay a compact plugin. Avoid speculative abstractions, plugin SDK wrappers, or multi-file refactors unless code size starts blocking safe changes.
+
+## Integration contract v1
+
+Use a command/JSON list-open contract before building a plugin SDK. This keeps contributor burden low and avoids a speculative framework. Herdr Plus remains built in because it needs Herdr-specific workspace/tab bootstrap behavior.
+
+Picker Plus owns notifications for integration open success/failure so plugin authors only implement list/open.

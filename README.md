@@ -19,6 +19,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
 - **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
 - **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
+- **Plugin integration contract**: other tools can appear in the picker with a simple command/JSON list-open API.
 
 ### Sources
 
@@ -30,6 +31,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
 | `agent` | agent panes from `herdr pane list` | focus agent pane |
+| `plugin` | configured `[[integrations]]` commands | run configured open command |
 
 ## Requirements
 
@@ -171,7 +173,7 @@ On first run, the plugin creates `config.toml` from [`examples/default-config.to
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
 
 [sources]
@@ -216,14 +218,14 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 
 ```toml
 [picker]
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
 ```
 
 Accepted names:
 
 ```text
-workspace, open, project, zoxide, root, agent, quick
+workspace, open, project, zoxide, root, agent, quick, plugin
 ```
 
 Set the boost to zero for pure matcher score:
@@ -286,6 +288,31 @@ Supported built-in names:
 ```text
 one-light, catppuccin, rose-pine, rose-pine-dawn, terminal
 ```
+
+## Plugin integrations
+
+Other tools can integrate without Rust code by exposing a list/open command pair. The `label` is shown as that integration's source name in the picker:
+
+```toml
+[[integrations]]
+id = "bookmarks"
+label = "Bookmarks"
+enabled = true
+collect = "bookmarks list --json"
+open = "bookmarks open {{id}}"
+notify_success = true
+notify_error = true
+```
+
+`collect` prints JSON:
+
+```json
+[{"id":"abc","title":"Item","subtitle":"Info","path":"/tmp","kind":"bookmark"}]
+```
+
+When selected, Picker Plus runs `open` with `{{id}}`, `{{title}}`, `{{subtitle}}`, `{{path}}`, and `{{kind}}` shell-quoted. Success and failure are reported through Herdr notifications.
+
+See [`docs/plugin-integrations.md`](docs/plugin-integrations.md).
 
 ## Herdr Plus integration
 
@@ -392,6 +419,7 @@ zoxide query -l
 
 - [`docs/architecture.md`](docs/architecture.md): architecture and runtime flow
 - [`docs/integrations.md`](docs/integrations.md): integration patterns for Herdr and other plugins
+- [`docs/plugin-integrations.md`](docs/plugin-integrations.md): command/JSON integration contract
 - [`RELEASE.md`](RELEASE.md): release process
 - [`SECURITY.md`](SECURITY.md): security policy
 

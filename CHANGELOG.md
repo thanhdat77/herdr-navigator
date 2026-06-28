@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Command/JSON plugin integration contract via `[[integrations]]`.
+- Herdr success/error notifications for selected actions.
+
+### Changed
+- Herdr Plus logic now lives in a built-in integration adapter.
+- Picker entries dispatch through actions instead of hardcoding behavior by source.
+
 ## [0.1.2] - 2026-06-28
 
 ### Fixed

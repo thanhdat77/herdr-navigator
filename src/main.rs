@@ -6,6 +6,7 @@ use std::{
 mod app;
 mod config;
 mod herdr;
+mod integrations;
 mod matcher;
 mod model;
 mod paths;
@@ -71,6 +72,6 @@ fn debug_list() {
     let mut app = App::new(Config::load(), Theme::load(true));
     app.refresh();
     for e in app.entries {
-        println!("{:?}\t{}\t{}", e.source, e.title, e.path.display());
+        println!("{}\t{}\t{}", e.source_name(), e.title, e.path.display());
     }
 }

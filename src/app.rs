@@ -5,14 +5,12 @@ use std::{
 
 use crate::{
     config::Config,
-    herdr::{herdr_json, run_herdr},
+    herdr::{herdr_json, notify_done, notify_error, run_herdr},
+    integrations::{command, herdr_plus},
     matcher::match_score,
-    model::{Entry, Source, WorkspaceKind, WorkspaceRef},
+    model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
     paths::{canonical_str, herdr_plus_quick_actions_dir},
-    sources::{
-        bootstrap_project_tabs, collect_agents, collect_projects, collect_roots,
-        collect_workspaces, collect_zoxide, quick_actions_entry,
-    },
+    sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
 };
 
@@ -53,7 +51,7 @@ impl App {
             push_unique(&mut entries, &mut seen, workspace_entries);
         }
         if self.config.sources.herdr_plus_projects {
-            push_unique(&mut entries, &mut seen, collect_projects());
+            push_unique(&mut entries, &mut seen, herdr_plus::collect_projects());
         }
         if self.config.sources.zoxide {
             push_unique(&mut entries, &mut seen, collect_zoxide());
@@ -65,8 +63,13 @@ impl App {
             entries.extend(collect_agents());
         }
         if self.config.sources.herdr_plus_quick_actions && herdr_plus_quick_actions_dir().is_dir() {
-            entries.push(quick_actions_entry());
+            entries.push(herdr_plus::quick_actions_entry());
         }
+        push_unique(
+            &mut entries,
+            &mut seen,
+            command::collect(&self.config.integrations),
+        );
 
         self.entries = entries;
         self.apply_filter();
@@ -142,23 +145,46 @@ impl App {
 
     pub(crate) fn open_selected(&self) -> Result<(), String> {
         let e = self.selected_entry().ok_or("nothing selected")?;
-        match e.source {
-            Source::Agent => {
-                let target = e.agent_target.as_ref().ok_or("agent has no target")?;
-                run_herdr(["agent", "focus", target])
+        let (result, notify_success, notify_failure) = match &e.action {
+            EntryAction::FocusAgent { target } => {
+                (run_herdr(["agent", "focus", target]), true, true)
             }
-            Source::Workspace => {
-                let id = e.workspace_id.as_ref().ok_or("workspace has no id")?;
-                run_herdr(["workspace", "focus", id])
+            EntryAction::FocusWorkspace { id } => {
+                (run_herdr(["workspace", "focus", id]), true, true)
             }
-            Source::Project => self.open_project(e),
-            Source::QuickAction => run_herdr([
-                "plugin",
-                "action",
-                "invoke",
-                "cloudmanic.herdr-plus.quick-actions",
-            ]),
-            Source::Zoxide | Source::Root => self.focus_or_create_dir(&e.path, &e.title),
+            EntryAction::OpenProject => (self.open_project(e), true, true),
+            EntryAction::InvokePluginAction { action } => (
+                run_herdr(["plugin", "action", "invoke", action]),
+                true,
+                true,
+            ),
+            EntryAction::FocusOrCreateDir => {
+                (self.focus_or_create_dir(&e.path, &e.title), true, true)
+            }
+            EntryAction::RunCommand {
+                command,
+                notify_success,
+                notify_error,
+            } => (
+                command::run_command(command),
+                *notify_success,
+                *notify_error,
+            ),
+        };
+
+        match result {
+            Ok(()) => {
+                if notify_success {
+                    notify_done(&format!("Opened {}", e.title));
+                }
+                Ok(())
+            }
+            Err(err) => {
+                if notify_failure {
+                    notify_error(&format!("Failed {}: {}", e.title, err.trim()));
+                }
+                Err(err)
+            }
         }
     }
 
@@ -185,7 +211,7 @@ impl App {
             "--focus",
         ])?;
         if let Some(p) = project {
-            bootstrap_project_tabs(p, &json, &e.path)?;
+            herdr_plus::bootstrap_project_tabs(p, &json, &e.path)?;
         }
         Ok(())
     }
@@ -239,10 +265,10 @@ impl App {
 
 fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: Vec<Entry>) {
     for e in incoming {
-        let key = if e.source == Source::Workspace {
-            format!("open:{}", e.workspace_id.as_deref().unwrap_or(&e.title))
-        } else {
-            format!("{}:{}", e.source.label(), e.key())
+        let key = match &e.action {
+            EntryAction::FocusWorkspace { id } => format!("open:{id}"),
+            EntryAction::RunCommand { command, .. } => format!("{}:{command}", e.source_name()),
+            _ => format!("{}:{}", e.source_name(), e.key()),
         };
         if seen.insert(key) {
             entries.push(e);
@@ -266,6 +292,8 @@ mod tests {
             workspace_id: None,
             agent_target: None,
             project: None,
+            action: EntryAction::FocusOrCreateDir,
+            source_label: None,
         }
     }
 
@@ -314,10 +342,12 @@ mod tests {
             vec![
                 Entry {
                     workspace_id: Some("w1".into()),
+                    action: EntryAction::FocusWorkspace { id: "w1".into() },
                     ..entry(Source::Workspace, "/tmp", "project: tmp")
                 },
                 Entry {
                     workspace_id: Some("w2".into()),
+                    action: EntryAction::FocusWorkspace { id: "w2".into() },
                     ..entry(Source::Workspace, "/tmp", "dir: tmp")
                 },
             ],

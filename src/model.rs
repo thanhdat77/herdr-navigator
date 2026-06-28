@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::paths::canonical_str;
 
@@ -12,6 +12,7 @@ pub(crate) enum Source {
     Root,
     Agent,
     QuickAction,
+    Integration,
 }
 
 impl Source {
@@ -23,6 +24,7 @@ impl Source {
             Source::Root => "root",
             Source::Agent => "agent",
             Source::QuickAction => "quick",
+            Source::Integration => "plugin",
         }
     }
 
@@ -36,11 +38,12 @@ impl Source {
             "quick" | "quick_action" | "quick_actions" | "herdr_plus_quick_actions" => {
                 Some(Source::QuickAction)
             }
+            "plugin" | "integration" | "integrations" => Some(Source::Integration),
             _ => None,
         }
     }
 
-    pub(crate) fn all() -> [Source; 6] {
+    pub(crate) fn all() -> [Source; 7] {
         [
             Source::Workspace,
             Source::Project,
@@ -48,8 +51,29 @@ impl Source {
             Source::Root,
             Source::Agent,
             Source::QuickAction,
+            Source::Integration,
         ]
     }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum EntryAction {
+    FocusWorkspace {
+        id: String,
+    },
+    FocusAgent {
+        target: String,
+    },
+    OpenProject,
+    InvokePluginAction {
+        action: String,
+    },
+    FocusOrCreateDir,
+    RunCommand {
+        command: String,
+        notify_success: bool,
+        notify_error: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -78,6 +102,8 @@ pub(crate) struct Entry {
     pub(crate) workspace_id: Option<String>,
     pub(crate) agent_target: Option<String>,
     pub(crate) project: Option<Project>,
+    pub(crate) action: EntryAction,
+    pub(crate) source_label: Option<String>,
 }
 
 impl Entry {
@@ -85,10 +111,16 @@ impl Entry {
         canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
     }
 
+    pub(crate) fn source_name(&self) -> &str {
+        self.source_label
+            .as_deref()
+            .unwrap_or_else(|| self.source.label())
+    }
+
     pub(crate) fn haystack(&self) -> String {
         format!(
             "{} {} {} {}",
-            self.source.label(),
+            self.source_name(),
             self.title,
             self.subtitle,
             self.path.display()
@@ -97,7 +129,7 @@ impl Entry {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct Project {
     pub(crate) name: String,
     #[serde(default)]
@@ -106,7 +138,7 @@ pub(crate) struct Project {
     #[serde(default)]
     pub(crate) tabs: Vec<ProjectTab>,
 }
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct ProjectTab {
     pub(crate) name: String,
     pub(crate) command: Option<String>,

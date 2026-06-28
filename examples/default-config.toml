@@ -18,8 +18,8 @@ create_missing = true
 engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
-# Accepted names: workspace/open, project, zoxide, root, agent, quick.
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick"]
+# Accepted names: workspace/open, project, zoxide, root, agent, quick, plugin.
+source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
@@ -58,3 +58,16 @@ max_depth = 3
 [[roots]]
 path = "~/projects"
 max_depth = 3
+
+# Optional command/JSON integrations. A plugin only needs:
+# - collect: command that prints JSON array
+# - open: command to run when the item is selected
+#
+# [[integrations]]
+# id = "demo"
+# label = "Bookmarks"
+# enabled = true
+# collect = "bookmarks list --json"
+# open = "bookmarks open {{id}}"
+# notify_success = true
+# notify_error = true

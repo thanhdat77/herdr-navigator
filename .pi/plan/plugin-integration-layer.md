@@ -15,7 +15,66 @@ Make Herdr Picker Plus a real picker center with a clean integration layer:
 - Herdr Plus should be the reference integration, not special-case logic scattered across core.
 - Public docs should explain the integration contract for plugin authors.
 
-## Phase 1 — Extract Herdr Plus adapter
+
+## Integration contract v1
+
+A plugin that wants to appear in Picker Plus only needs a command API:
+
+```toml
+[[integrations]]
+id = "bookmarks"
+label = "Bookmarks"
+enabled = true
+collect = "bookmarks list --json"
+open = "bookmarks open {{id}}"
+notify_success = true
+notify_error = true
+```
+
+`collect` returns JSON array:
+
+```json
+[
+  {
+    "id": "stable-id",
+    "title": "Display name",
+    "subtitle": "Optional details",
+    "path": "/optional/path",
+    "kind": "free-form-type"
+  }
+]
+```
+
+Minimum item fields: `id`, `title`.
+
+Template vars for `open` and notifications:
+
+```text
+{{id}} {{title}} {{subtitle}} {{path}} {{kind}}
+```
+
+Picker Plus owns default notifications. Plugins do not need to implement a notification API.
+
+Notification behavior:
+
+- `collect` failure: skip quietly by default, optional debug log later.
+- `open` success: show Herdr notification so user knows the action completed.
+- `open` failure: show Herdr notification with short stderr/body.
+- Built-in actions should use the same notification helper.
+
+Herdr command:
+
+```bash
+herdr notification show "Picker Plus" --body "Opened Dotfiles" --position top-right --sound done
+```
+
+Error command:
+
+```bash
+herdr notification show "Picker Plus" --body "Failed: <short error>" --position top-right --sound request
+```
+
+## Phase 1 — Extract Herdr Plus adapter ✅
 
 Create:
 
@@ -46,7 +105,7 @@ Done when:
 - Herdr Plus can be understood as one adapter module.
 - Behavior is unchanged.
 
-## Phase 2 — Separate entry action from source
+## Phase 2 — Separate entry action from source ✅
 
 Current dispatch is mostly based on `Source`. For plugin integrations, entries need their own action.
 
@@ -79,17 +138,17 @@ Done when:
 - Enter behavior comes from `EntryAction`.
 - Existing workspace/project/zoxide/root/agent/quick behavior still works.
 
-## Phase 3 — Generic command/JSON integrations
+## Phase 3 — Generic command/JSON integrations ✅
 
 Add config support:
 
 ```toml
 [[integrations]]
-id = "my-plugin"
+id = "bookmarks"
 label = "my plugin"
 enabled = true
-collect = "my-plugin list --json"
-open = "my-plugin open {{id}}"
+collect = "bookmarks list --json"
+open = "bookmarks open {{id}}"
 ```
 
 `collect` command returns JSON:
@@ -121,14 +180,14 @@ Done when:
 - Enter runs the configured open command
 - no plugin-specific Rust code is needed for simple integrations
 
-## Phase 4 — Public docs and examples
+## Phase 4 — Public docs and examples ✅
 
 Add:
 
 ```text
 docs/plugin-integrations.md
 examples/integrations/basic-command.toml
-examples/integrations/herdr-plus-style.toml
+examples/integrations/advanced-command.toml
 ```
 
 Docs should cover:
@@ -146,7 +205,7 @@ Herdr Plus = built-in reference adapter
 Other plugins = command/JSON contract first
 ```
 
-## Phase 5 — Tests and verification
+## Phase 5 — Tests and verification ✅
 
 Add small tests for:
 
@@ -170,3 +229,15 @@ cargo build --release
 Do Phase 1 first.
 
 Reason: it improves contributor structure immediately and reduces risk. Generic integrations should come after the current Herdr Plus behavior is isolated and stable.
+
+
+## Implementation status
+
+Implemented in the working tree:
+
+- Herdr Plus adapter under `src/integrations/herdr_plus.rs`.
+- Generic command/JSON adapter under `src/integrations/command.rs`.
+- `EntryAction` dispatch model.
+- User-defined integration source labels via `label`; Picker Plus does not hardcode external source names.
+- Success/error notifications around selected actions.
+- Public docs and examples for integration authors.

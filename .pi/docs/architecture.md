@@ -87,3 +87,14 @@ Then:
 3. fallback to One Light if unavailable
 
 Supported names now: `one-light`, `catppuccin`, `rose-pine`, `rose-pine-dawn`, `terminal`.
+
+## Integration layer
+
+Picker core now dispatches through `EntryAction`, not only `Source`. `Source` is display/filter metadata; `EntryAction` owns Enter behavior.
+
+Built-in adapters live under `src/integrations/`:
+
+- `herdr_plus.rs`: Herdr Plus projects, Quick Actions, and project tab bootstrap.
+- `command.rs`: generic command/JSON integrations from `[[integrations]]` config.
+
+External plugin contract is intentionally small: `collect` prints JSON items, `open` runs with template vars. Picker Plus owns success/error notifications.

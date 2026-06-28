@@ -26,3 +26,36 @@ pub(crate) fn run_herdr<const N: usize>(args: [&str; N]) -> Result<(), String> {
         Err(format!("herdr exited with {status}"))
     }
 }
+
+pub(crate) fn notify_done(body: &str) {
+    notify(body, "done");
+}
+
+pub(crate) fn notify_error(body: &str) {
+    notify(body, "request");
+}
+
+fn notify(body: &str, sound: &str) {
+    let body = truncate(body, 180);
+    let _ = Command::new(herdr_bin())
+        .args([
+            "notification",
+            "show",
+            "Picker Plus",
+            "--body",
+            &body,
+            "--position",
+            "top-right",
+            "--sound",
+            sound,
+        ])
+        .status();
+}
+
+fn truncate(value: &str, max_chars: usize) -> String {
+    let mut out: String = value.chars().take(max_chars).collect();
+    if value.chars().count() > max_chars {
+        out.push('…');
+    }
+    out
+}

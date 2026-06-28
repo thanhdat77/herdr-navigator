@@ -1,0 +1,11 @@
+# Add this block to your Herdr Picker Plus config.toml.
+# The collect command must print a JSON array.
+
+[[integrations]]
+id = "demo"
+label = "Bookmarks"
+enabled = true
+collect = "bookmarks list --json"
+open = "bookmarks open {{id}}"
+notify_success = true
+notify_error = true

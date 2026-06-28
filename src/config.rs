@@ -16,6 +16,8 @@ pub(crate) struct Config {
     pub(crate) theme: ThemeConfig,
     #[serde(default)]
     pub(crate) roots: Vec<RootConfig>,
+    #[serde(default)]
+    pub(crate) integrations: Vec<IntegrationConfig>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -47,6 +49,20 @@ pub(crate) struct SourcesConfig {
     pub(crate) herdr_plus_quick_actions: bool,
 }
 #[derive(Clone, Deserialize)]
+pub(crate) struct IntegrationConfig {
+    pub(crate) id: String,
+    pub(crate) label: String,
+    #[serde(default = "yes")]
+    pub(crate) enabled: bool,
+    pub(crate) collect: String,
+    pub(crate) open: String,
+    #[serde(default = "yes")]
+    pub(crate) notify_success: bool,
+    #[serde(default = "yes")]
+    pub(crate) notify_error: bool,
+}
+
+#[derive(Clone, Deserialize)]
 pub(crate) struct ThemeConfig {
     #[serde(default = "yes")]
     pub(crate) inherit_herdr: bool,
@@ -67,10 +83,18 @@ fn default_engine() -> String {
     "nucleo".into()
 }
 fn default_source_order() -> Vec<String> {
-    ["workspace", "project", "zoxide", "root", "agent", "quick"]
-        .into_iter()
-        .map(String::from)
-        .collect()
+    [
+        "workspace",
+        "project",
+        "zoxide",
+        "root",
+        "agent",
+        "quick",
+        "plugin",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
 }
 fn default_source_priority_boost() -> i64 {
     25
@@ -128,6 +152,7 @@ impl Default for Config {
             picker: PickerConfig::default(),
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
+            integrations: vec![],
             roots: vec![
                 RootConfig {
                     path: "~/workspace".into(),
@@ -158,5 +183,31 @@ impl Config {
             .ok()
             .and_then(|s| toml::from_str(&s).ok())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_command_integration_config() {
+        let config: Config = toml::from_str(
+            r#"
+            [[integrations]]
+            id = "bookmarks"
+            label = "Bookmarks"
+            collect = "bookmarks list --json"
+            open = "bookmarks open {{id}}"
+            notify_success = false
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(config.integrations.len(), 1);
+        assert_eq!(config.integrations[0].id, "bookmarks");
+        assert_eq!(config.integrations[0].label, "Bookmarks");
+        assert!(!config.integrations[0].notify_success);
+        assert!(config.integrations[0].notify_error);
     }
 }

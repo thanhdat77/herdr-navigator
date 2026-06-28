@@ -1,0 +1,11 @@
+# Herdr Plus itself is built in because it needs tab bootstrap behavior.
+# This shows the command/JSON shape another plugin can expose.
+
+[[integrations]]
+id = "workspace-bookmarks"
+label = "Workspace Bookmarks"
+enabled = true
+collect = "workspace-bookmarks list --json"
+open = "workspace-bookmarks open {{id}}"
+notify_success = true
+notify_error = true

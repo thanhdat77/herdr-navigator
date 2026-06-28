@@ -44,3 +44,17 @@ This plugin only launches it.
 User cares that the picker visually belongs inside Herdr. “Inherit theme” means practical visual matching, not perfect API-level inheritance, because Herdr does not expose palette to plugin v1.
 
 Prefer adding only palettes users actually need.
+
+## Command/JSON plugin integrations
+
+Users can add external tools without Rust changes:
+
+```toml
+[[integrations]]
+id = "my-plugin"
+label = "My Plugin"
+collect = "my-plugin list --json"
+open = "my-plugin open {{id}}"
+```
+
+Collect JSON minimum: `id`, `title`. Optional: `subtitle`, `path`, `kind`.
