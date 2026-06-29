@@ -19,7 +19,6 @@ herdr_plus_quick_actions = true
 
 [servers]
 ssh_config = true
-default_cwd = "~"
 
 [theme]
 inherit_herdr = true

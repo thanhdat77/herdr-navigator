@@ -33,7 +33,7 @@ Keep keybindings mnemonic and few.
 
 ## Server access
 
-Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting creates/focuses a `server: NAME` workspace and runs `ssh` or the custom command. Default local cwd is `~`; per-server `cwd` can override it.
+Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting runs `herdr --remote TARGET` directly; Picker Plus does not create a local server workspace.
 
 ## Herdr Plus
 

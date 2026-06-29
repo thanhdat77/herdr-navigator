@@ -183,7 +183,7 @@ impl App {
             EntryAction::FocusOrCreateDir => {
                 (self.focus_or_create_dir(&e.path, &e.title), true, true)
             }
-            EntryAction::OpenServer { command } => (self.open_server(e, command), true, true),
+            EntryAction::OpenServer { target } => (self.open_server(target), true, true),
             EntryAction::RunCommand {
                 command,
                 notify_success,
@@ -239,32 +239,8 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn open_server(&self, e: &Entry, command: &str) -> Result<(), String> {
-        if self.config.picker.reuse_existing {
-            if let Some(ws) = self.matching_server_workspace(e) {
-                return run_herdr(["workspace", "focus", &ws.id]);
-            }
-        }
-        if !self.config.picker.create_missing {
-            return Err("create_missing=false and no server workspace exists".into());
-        }
-        let label = format!("server: {}", e.title);
-        let json = herdr_json([
-            "workspace",
-            "create",
-            "--cwd",
-            &e.path.display().to_string(),
-            "--label",
-            &label,
-            "--focus",
-        ])?;
-        if let Some(pane) = json
-            .pointer("/result/root_pane/pane_id")
-            .and_then(|v| v.as_str())
-        {
-            let _ = run_herdr(["pane", "run", pane, command]);
-        }
-        Ok(())
+    pub(crate) fn open_server(&self, target: &str) -> Result<(), String> {
+        run_herdr(["--remote", target])
     }
 
     pub(crate) fn focus_or_create_dir(&self, path: &Path, label: &str) -> Result<(), String> {
@@ -304,14 +280,6 @@ impl App {
 
     pub(crate) fn matching_dir_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
         self.matching_dir_workspace_by_key(&e.key())
-    }
-
-    pub(crate) fn matching_server_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
-        let label = format!("server: {}", e.title).to_ascii_lowercase();
-        self.path_to_workspaces
-            .values()
-            .flatten()
-            .find(|ws| ws.kind == WorkspaceKind::Server && ws.label.to_ascii_lowercase() == label)
     }
 
     fn matching_dir_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
@@ -493,7 +461,7 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
     for e in incoming {
         let key = match &e.action {
             EntryAction::FocusWorkspace { id } => format!("open:{id}"),
-            EntryAction::OpenServer { command } => format!("server:{}:{command}", e.title),
+            EntryAction::OpenServer { target } => format!("server:{}:{target}", e.title),
             EntryAction::RunCommand { command, .. } => format!("{}:{command}", e.source_name()),
             _ => format!("{}:{}", e.source_name(), e.key()),
         };

@@ -48,7 +48,7 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
-# SSH/manual server entries. Selecting creates/focuses a server workspace.
+# SSH/manual server entries. Selecting connects with `herdr --remote`.
 servers = true
 
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
@@ -63,21 +63,17 @@ inherit_herdr = true
 # Read hosts from ~/.ssh/config.
 ssh_config = true
 
-# Local cwd for server workspaces when a server entry does not set cwd.
-default_cwd = "~"
-
-# Optional manual servers. Use command for one-off shortcuts.
+# Optional manual servers. Use target to override the host passed to `herdr --remote`.
 # [[servers.entries]]
 # name = "prod-api"
 # host = "10.0.0.5"
 # user = "ubuntu"
-# cwd = "~/workspace/ops"
 # tags = ["prod", "api"]
 #
 # [[servers.entries]]
-# name = "logs-prod"
-# command = "ssh prod-api 'journalctl -fu app'"
-# tags = ["prod", "logs"]
+# name = "prod-shortcut"
+# target = "prod-api"
+# tags = ["prod"]
 
 # Keep roots short; zoxide should handle most frequent directories.
 [[roots]]

@@ -104,9 +104,7 @@ pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
                     host.hostname.as_deref(),
                     host.user.as_deref(),
                     None,
-                    None,
                     &[],
-                    &config.servers.default_cwd,
                 )
             }));
         }
@@ -116,10 +114,8 @@ pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
             &server.name,
             server.host.as_deref(),
             server.user.as_deref(),
-            server.command.as_deref(),
-            server.cwd.as_deref(),
+            server.target.as_deref(),
             &server.tags,
-            &config.servers.default_cwd,
         )
     }));
     entries
@@ -129,26 +125,19 @@ fn server_entry(
     name: &str,
     host: Option<&str>,
     user: Option<&str>,
-    command: Option<&str>,
-    cwd: Option<&str>,
+    target_override: Option<&str>,
     tags: &[String],
-    default_cwd: &str,
 ) -> Entry {
-    let target = match (user, host) {
-        (Some(user), Some(host)) => format!("{user}@{host}"),
-        (_, Some(host)) => host.to_string(),
-        _ => name.to_string(),
-    };
-    let command = command
+    let target = target_override
         .map(str::to_string)
-        .unwrap_or_else(|| format!("ssh {target}"));
-    let path = expand_path(cwd.unwrap_or(default_cwd));
-    let subtitle = if command.starts_with("ssh ") {
-        command.clone()
-    } else {
-        format!("cmd: {command}")
-    };
-    let mut search_terms = vec![name.into(), target, command.clone()];
+        .unwrap_or_else(|| match (user, host) {
+            (Some(user), Some(host)) => format!("{user}@{host}"),
+            (_, Some(host)) => host.to_string(),
+            _ => name.to_string(),
+        });
+    let path = home();
+    let subtitle = format!("herdr --remote {target}");
+    let mut search_terms = vec![name.into(), target.clone()];
     if let Some(host) = host {
         search_terms.push(host.into());
     }
@@ -165,7 +154,7 @@ fn server_entry(
         workspace_label: Some(format!("server: {name}")),
         agent_target: None,
         project: None,
-        action: EntryAction::OpenServer { command },
+        action: EntryAction::OpenServer { target },
         source_label: None,
         search_terms,
     }
@@ -403,20 +392,21 @@ mod tests {
     }
 
     #[test]
-    fn manual_server_entry_uses_command_when_present() {
+    fn manual_server_entry_uses_remote_target_when_present() {
         let entry = server_entry(
             "logs-prod",
             Some("prod-api"),
             Some("ubuntu"),
-            Some("ssh prod-api 'journalctl -fu app'"),
-            Some("~"),
+            Some("prod-api"),
             &["logs".into(), "prod".into()],
-            "~",
         );
 
         assert_eq!(entry.source, Source::Server);
         assert_eq!(entry.title, "logs-prod");
         assert!(entry.haystack().contains("logs"));
-        assert!(matches!(entry.action, EntryAction::OpenServer { .. }));
+        assert!(matches!(
+            entry.action,
+            EntryAction::OpenServer { ref target } if target == "prod-api"
+        ));
     }
 }

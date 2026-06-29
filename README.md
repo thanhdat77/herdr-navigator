@@ -28,7 +28,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
-| `server` | `~/.ssh/config` + `[servers]` config | focus/create server workspace + run command |
+| `server` | `~/.ssh/config` + `[servers]` config | connect with `herdr --remote` |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
@@ -40,10 +40,9 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 Server access stays as boring as SSH itself:
 
 - reads hosts from `~/.ssh/config`
-- allows optional `[[servers.entries]]` for hosts or custom commands
+- allows optional `[[servers.entries]]` for aliases or explicit targets
 - uses `Ctrl-S` to filter servers only; no extra query prefix
-- creates/focuses Herdr workspaces labeled `server: NAME`
-- uses `~` as the default local cwd, with per-server `cwd` override
+- connects directly with `herdr --remote TARGET`
 
 ## Requirements
 
@@ -205,7 +204,6 @@ servers = true
 
 [servers]
 ssh_config = true
-default_cwd = "~"
 
 [theme]
 inherit_herdr = true
@@ -245,27 +243,29 @@ servers = true
 
 ### Server access
 
-Servers come from `~/.ssh/config` by default. Use `Ctrl-S` to show only servers, then type normally to search by name, host, user, tags, or command.
+Servers come from `~/.ssh/config` by default. Use `Ctrl-S` to show only servers, then type normally to search by name, host, user, tags, or target.
 
 ```toml
 [servers]
 ssh_config = true
-default_cwd = "~"
 
 [[servers.entries]]
 name = "prod-api"
 host = "10.0.0.5"
 user = "ubuntu"
-cwd = "~/workspace/ops"
 tags = ["prod", "api"]
 
 [[servers.entries]]
-name = "logs-prod"
-command = "ssh prod-api 'journalctl -fu app'"
-tags = ["prod", "logs"]
+name = "prod-shortcut"
+target = "prod-api"
+tags = ["prod"]
 ```
 
-Selecting a server focuses an existing `server: NAME` workspace or creates one and runs the SSH/custom command.
+Selecting a server runs Herdr remote attach directly:
+
+```bash
+herdr --remote TARGET
+```
 
 ### Agent search
 

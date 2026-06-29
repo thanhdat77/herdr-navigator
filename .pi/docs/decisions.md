@@ -38,9 +38,9 @@ Local mapping + custom override is the accepted solution for now.
 
 This project should stay a compact plugin. Avoid speculative abstractions, plugin SDK wrappers, or multi-file refactors unless code size starts blocking safe changes.
 
-## Server access stays SSH-first
+## Server access uses Herdr remote directly
 
-Use `~/.ssh/config` plus optional manual `[[servers.entries]]`; no inventory database, no network scan, no health checks. `Ctrl-S` is the only server-specific filter. Server workspaces use label `server: NAME` and default cwd `~` unless overridden.
+Use `~/.ssh/config` plus optional manual `[[servers.entries]]`; no inventory database, no network scan, no health checks. `Ctrl-S` is the only server-specific filter. Selecting a server runs `herdr --remote TARGET`; do not create local `server: NAME` workspaces.
 
 ## Integration contract v1
 

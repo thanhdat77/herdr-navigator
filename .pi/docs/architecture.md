@@ -41,13 +41,13 @@ Each picker row is an `Entry`:
 - optional Herdr Plus `Project`
 - action enum for focus/create/server/integration behavior
 
-Duplicate workspace/project/root/zoxide paths are collapsed by canonical path where applicable. Agent entries are appended separately because multiple agents can share cwd. Server entries dedupe by title + command because many servers share the default `~` cwd.
+Duplicate workspace/project/root/zoxide paths are collapsed by canonical path where applicable. Agent entries are appended separately because multiple agents can share cwd. Server entries dedupe by title + remote target.
 
 ## Open behavior
 
 - Workspace: `herdr workspace focus <id>`
 - Agent: `herdr agent focus <target>`
-- Server: focus `server: NAME` workspace if open; else create workspace and run SSH/custom command in root pane
+- Server: run `herdr --remote <target>` directly
 - Project: focus existing path if open; else create workspace and apply tabs
 - Zoxide/root: focus existing path if open; else create workspace
 - Quick: invoke Herdr Plus Quick Actions
