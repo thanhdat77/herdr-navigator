@@ -267,6 +267,13 @@ Selecting a server runs Herdr remote attach directly:
 herdr --remote TARGET
 ```
 
+Because Picker Plus runs inside a Herdr pane, Herdr must allow nested launches:
+
+```toml
+[experimental]
+allow_nested = true
+```
+
 ### Agent search
 
 Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut and `Ctrl-A` use `picker.agent_sort`; default `herdr` reads Herdr's `agent_panel_sort`. Set `priority` for blocking first, done second, then the rest; set `spaces` to keep Herdr/pane order.
