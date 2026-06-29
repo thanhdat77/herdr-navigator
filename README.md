@@ -74,7 +74,22 @@ Optional integrations:
 
 Choose one install path.
 
-### Option A: install from release archive
+### Option A: install with Herdr
+
+This is the easiest path for public installs:
+
+```bash
+herdr plugin install thanhdat77/herdr-picker-plus --yes
+```
+
+Verify Herdr sees the plugin:
+
+```bash
+herdr plugin list
+herdr plugin action list --plugin herdr-picker-plus
+```
+
+### Option B: install from release archive
 
 1. Download the archive for your platform from the GitHub Release page.
 2. Extract it somewhere stable, for example:
@@ -90,40 +105,14 @@ Choose one install path.
    herdr plugin link ~/.local/share/herdr/plugins/herdr-picker-plus
    ```
 
-4. Verify Herdr sees the plugin:
+### Option C: install from source
 
-   ```bash
-   herdr plugin list
-   herdr plugin action list --plugin herdr-picker-plus
-   ```
-
-### Option B: install from source
-
-1. Clone the repo:
-
-   ```bash
-   git clone <repo-url>
-   cd herdr-picker-plus
-   ```
-
-2. Build the binary:
-
-   ```bash
-   cargo build --release
-   ```
-
-3. Link the local plugin directory:
-
-   ```bash
-   herdr plugin link "$PWD"
-   ```
-
-4. Verify:
-
-   ```bash
-   herdr plugin list
-   herdr plugin action list --plugin herdr-picker-plus
-   ```
+```bash
+git clone https://github.com/thanhdat77/herdr-picker-plus.git
+cd herdr-picker-plus
+cargo build --release
+herdr plugin link "$PWD"
+```
 
 ## First run
 
