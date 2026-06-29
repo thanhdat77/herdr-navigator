@@ -1,22 +1,21 @@
 # Herdr Picker Plus
 
-Herdr Picker Plus turns Herdr into a **command center for where you work next**.
+Herdr Picker Plus turns Herdr into a **customizable command center for moving anywhere in your workflow**.
 
-Stop remembering whether something is an open workspace, a project template, a zoxide directory, an SSH host, or an agent pane. Hit one key, type what you remember, press Enter.
+Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. It is built for fast context switching: type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
 
 ```text
 Ctrl-T / prefix+t -> type -> Enter
 ```
 
-Picker Plus is built for people who live in terminals all day:
+Why it matters:
 
-- jump back to open workspaces instead of creating duplicates
-- open project layouts with Herdr Plus tabs already wired up
-- turn SSH hosts into local Herdr workspaces with a `remote` tab
-- focus busy agent panes without hunting through tabs
-- add your own tools with a tiny command/JSON contract
+- **Enhance your workflow everywhere**: move across repos, servers, agents, actions, and directories without leaving Herdr.
+- **Deep Herdr integration**: reuse existing workspaces, open SSH hosts as Herdr server workspaces, focus agent panes, and launch Herdr Plus projects/actions.
+- **Fully customizable**: source order, ranking bias, preview pane, search engine, roots, servers, agent aliases, theme behavior, and integrations all live in config.
+- **Easily extendable**: any tool or plugin can join the picker through a tiny command/JSON `collect` + `open` contract.
 
-It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, connect, launch, and reuse.
+It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, connect, launch, reuse, and extend.
 
 ![Herdr Picker Plus screenshot](docs/assets/herdr-picker-plus.png)
 
