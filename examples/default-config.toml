@@ -18,8 +18,8 @@ create_missing = true
 engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
-# Accepted names: workspace/open, project, server, zoxide, root, agent, quick, plugin.
-source_order = ["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
+# Accepted names: workspace/open, agent, project, server, zoxide, root, quick, plugin.
+source_order = ["workspace", "agent", "project", "server", "zoxide", "root", "quick", "plugin"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
