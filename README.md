@@ -28,7 +28,7 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
-| `server` | `~/.ssh/config` + `[servers]` config | connect with `herdr --remote` |
+| `server` | `~/.ssh/config` + `[servers]` config | create/focus server workspace + connect tab |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
@@ -42,7 +42,7 @@ Server access stays as boring as SSH itself:
 - reads hosts from `~/.ssh/config`
 - allows optional `[[servers.entries]]` for aliases or explicit targets
 - uses `Ctrl-S` to filter servers only; no extra query prefix
-- connects directly with `herdr --remote TARGET`
+- creates/focuses a local `server: NAME` workspace, then runs `herdr --remote TARGET` in its first tab
 
 ## Requirements
 
@@ -261,10 +261,12 @@ target = "prod-api"
 tags = ["prod"]
 ```
 
-Selecting a server runs Herdr remote attach directly:
+Selecting a server creates or focuses a local server workspace, then runs Herdr remote attach in its first tab:
 
-```bash
-herdr --remote TARGET
+```text
+workspace: server: NAME
+tab: remote
+cmd: herdr --remote TARGET
 ```
 
 Because Picker Plus runs inside a Herdr pane, Herdr must allow nested launches:

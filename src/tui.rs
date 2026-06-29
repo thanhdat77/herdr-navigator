@@ -300,7 +300,10 @@ fn preview_text(app: &App, e: &Entry) -> String {
         EntryAction::FocusWorkspace { .. } => "focus existing workspace",
         EntryAction::FocusAgent { .. } => "focus agent pane",
         EntryAction::InvokePluginAction { .. } => "invoke Herdr plugin action",
-        EntryAction::OpenServer { .. } => "connect with Herdr remote",
+        EntryAction::OpenServer { .. } if app.matching_server_workspace(e).is_some() => {
+            "focus matching server workspace"
+        }
+        EntryAction::OpenServer { .. } => "create server workspace + connect tab",
         EntryAction::RunCommand { .. } => "run integration command",
         EntryAction::OpenProject if app.matching_project_workspace(e).is_some() => {
             "focus matching project workspace"
