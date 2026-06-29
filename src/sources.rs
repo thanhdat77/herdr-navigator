@@ -103,7 +103,7 @@ pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
                     &host.name,
                     host.hostname.as_deref(),
                     host.user.as_deref(),
-                    None,
+                    Some(&host.name),
                     &[],
                 )
             }));
@@ -136,7 +136,7 @@ fn server_entry(
             _ => name.to_string(),
         });
     let path = home();
-    let subtitle = format!("herdr --remote {target}");
+    let subtitle = format!("ssh {target}");
     let mut search_terms = vec![name.into(), target.clone()];
     if let Some(host) = host {
         search_terms.push(host.into());

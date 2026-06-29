@@ -9,7 +9,7 @@ All notable changes to this project are documented here.
 - Herdr success/error notifications for selected actions.
 - Agent search by agent name, workspace/session label, cwd/path, status, ids, and aliases.
 - Agent shortcut: `@` as a Ctrl-A-style full agent view with configurable sorting.
-- Server source from `~/.ssh/config` and manual `[[servers.entries]]`, with `Ctrl-S` filtering and `herdr --remote` connect inside a server workspace tab.
+- Server source from `~/.ssh/config` and manual `[[servers.entries]]`, with `Ctrl-S` filtering and SSH connect inside a server workspace tab.
 
 ### Changed
 

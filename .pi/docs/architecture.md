@@ -47,7 +47,7 @@ Duplicate workspace/project/root/zoxide paths are collapsed by canonical path wh
 
 - Workspace: `herdr workspace focus <id>`
 - Agent: `herdr agent focus <target>`
-- Server: focus `server: NAME` workspace if open; else create one, rename first tab to `remote`, and run `herdr --remote <target>` in root pane
+- Server: focus `server: NAME` workspace if open; else create one, rename first tab to `remote`, and run `ssh <target>` in root pane
 - Project: focus existing path if open; else create workspace and apply tabs
 - Zoxide/root: focus existing path if open; else create workspace
 - Quick: invoke Herdr Plus Quick Actions

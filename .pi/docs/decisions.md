@@ -40,7 +40,7 @@ This project should stay a compact plugin. Avoid speculative abstractions, plugi
 
 ## Server access uses Herdr remote directly
 
-Use `~/.ssh/config` plus optional manual `[[servers.entries]]`; no inventory database, no network scan, no health checks. `Ctrl-S` is the only server-specific filter. Selecting a server creates/focuses a local `server: NAME` workspace, then runs `herdr --remote TARGET` in its first tab. Because Picker Plus runs inside Herdr, users need `[experimental] allow_nested = true` for server entries.
+Use `~/.ssh/config` plus optional manual `[[servers.entries]]`; no inventory database, no network scan, no health checks. `Ctrl-S` is the only server-specific filter. Selecting a server creates/focuses a local `server: NAME` workspace, then runs `ssh TARGET` in its first tab. Do not use `herdr --remote` here; it nests Herdr inside Herdr and requires experimental nested mode.
 
 ## Integration contract v1
 

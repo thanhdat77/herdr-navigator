@@ -33,7 +33,7 @@ Keep keybindings mnemonic and few.
 
 ## Server access
 
-Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting creates/focuses a local `server: NAME` workspace, renames the first tab to `remote`, then runs `herdr --remote TARGET` in that pane.
+Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting creates/focuses a local `server: NAME` workspace, renames the first tab to `remote`, then runs `ssh TARGET` in that pane. For SSH config hosts, `TARGET` is the Host alias.
 
 ## Herdr Plus
 

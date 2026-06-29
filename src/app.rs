@@ -268,7 +268,7 @@ impl App {
             .pointer("/result/root_pane/pane_id")
             .and_then(|v| v.as_str())
         {
-            let command = format!("herdr --remote {}", shell_quote(target));
+            let command = format!("ssh {}", shell_quote(target));
             let _ = run_herdr(["pane", "run", pane, &command]);
         }
         Ok(())

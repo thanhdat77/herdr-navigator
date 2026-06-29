@@ -48,7 +48,7 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
-# SSH/manual server entries. Selecting connects with `herdr --remote`.
+# SSH/manual server entries. Selecting opens `ssh TARGET` in a server workspace.
 servers = true
 
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
@@ -63,7 +63,7 @@ inherit_herdr = true
 # Read hosts from ~/.ssh/config.
 ssh_config = true
 
-# Optional manual servers. Use target to override the host passed to `herdr --remote`.
+# Optional manual servers. Use target to override the host passed to `ssh`.
 # [[servers.entries]]
 # name = "prod-api"
 # host = "10.0.0.5"

@@ -42,7 +42,7 @@ Server access stays as boring as SSH itself:
 - reads hosts from `~/.ssh/config`
 - allows optional `[[servers.entries]]` for aliases or explicit targets
 - uses `Ctrl-S` to filter servers only; no extra query prefix
-- creates/focuses a local `server: NAME` workspace, then runs `herdr --remote TARGET` in its first tab
+- creates/focuses a local `server: NAME` workspace, then runs `ssh TARGET` in its first tab
 
 ## Requirements
 
@@ -261,20 +261,15 @@ target = "prod-api"
 tags = ["prod"]
 ```
 
-Selecting a server creates or focuses a local server workspace, then runs Herdr remote attach in its first tab:
+Selecting a server creates or focuses a local server workspace, then opens SSH in its first tab:
 
 ```text
 workspace: server: NAME
 tab: remote
-cmd: herdr --remote TARGET
+cmd: ssh TARGET
 ```
 
-Because Picker Plus runs inside a Herdr pane, Herdr must allow nested launches:
-
-```toml
-[experimental]
-allow_nested = true
-```
+For hosts read from `~/.ssh/config`, `TARGET` is the `Host` alias so your SSH config, ProxyJump, IdentityFile, and keepalive settings still apply.
 
 ### Agent search
 
