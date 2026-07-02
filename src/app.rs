@@ -87,10 +87,11 @@ impl App {
 
     pub(crate) fn apply_filter(&mut self) {
         let query = Query::parse(&self.query);
-        let agent_view = query.all_agents
-            || (self.source_filter == Some(Source::Agent) && query.plain.is_empty());
-        let use_agent_priority =
-            agent_view && agent_sort(&self.config.picker.agent_sort) == "priority";
+        let empty_query = query.plain.is_empty();
+        let agent_view = query.all_agents || (self.source_filter == Some(Source::Agent) && empty_query);
+        let use_agent_priority = empty_query
+            && (agent_view || self.source_filter.is_none())
+            && agent_sort(&self.config.picker.agent_sort) == "priority";
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
@@ -457,23 +458,19 @@ fn all_match_either(tokens: &[String], left: &str, right: &str) -> bool {
 
 fn agent_status_bonus(entry: &Entry) -> i64 {
     let status = status_text(entry);
-    if status.contains("block") {
+    if ["block", "fail", "error"]
+        .iter()
+        .any(|needle| status.contains(needle))
+    {
+        4
+    } else if ["need", "attention", "review", "request", "question", "wait"]
+        .iter()
+        .any(|needle| status.contains(needle))
+    {
         3
     } else if status.contains("done") || status.contains("complete") {
         2
-    } else if [
-        "need",
-        "attention",
-        "review",
-        "request",
-        "question",
-        "wait",
-        "fail",
-        "error",
-    ]
-    .iter()
-    .any(|needle| status.contains(needle))
-    {
+    } else if status.contains("work") || status.contains("run") {
         1
     } else {
         0
@@ -643,15 +640,19 @@ mod tests {
     #[test]
     fn agent_shortcut_shows_all_agents_and_priority_is_configurable() {
         let idle = agent_entry_with_status("idle");
+        let working = agent_entry_with_status("working");
         let blocked = agent_entry_with_status("blocking");
+        let attention = agent_entry_with_status("needs attention");
         let done = agent_entry_with_status("done");
 
         assert!(Query::parse("@").filters_match(&idle));
         assert!(Query::parse("@").filters_match(&blocked));
         assert!(Query::parse("@idle").filters_match(&idle));
         assert!(Query::parse("@Dotfiles").filters_match(&idle));
-        assert_eq!(agent_status_bonus(&blocked), 3);
+        assert_eq!(agent_status_bonus(&blocked), 4);
+        assert_eq!(agent_status_bonus(&attention), 3);
         assert_eq!(agent_status_bonus(&done), 2);
+        assert_eq!(agent_status_bonus(&working), 1);
         assert_eq!(agent_status_bonus(&idle), 0);
         assert_eq!(agent_sort("priority"), "priority");
         assert_eq!(agent_sort("spaces"), "spaces");
@@ -660,6 +661,17 @@ mod tests {
     #[test]
     fn agent_aliases_are_searchable_plain_text() {
         assert!(agent_entry().haystack().contains("main ai dot"));
+    }
+
+    #[test]
+    fn default_empty_picker_prioritizes_agent_status() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.agent_sort = "priority".into();
+        app.entries = vec![agent_entry_with_status("idle"), agent_entry_with_status("done")];
+        app.apply_filter();
+
+        let first = &app.entries[app.filtered[0]];
+        assert!(first.subtitle.starts_with("done"));
     }
 
     #[test]
