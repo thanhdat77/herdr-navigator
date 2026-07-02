@@ -263,7 +263,7 @@ pub(crate) fn collect_agents(
                 .filter(|alias| alias.matches(agent, workspace_label, cwd))
                 .map(|alias| alias.alias.clone())
                 .collect();
-            let title = format!("{agent} · {workspace_label} · {dir}");
+            let title = format!("{} {agent} · {workspace_label} · {dir}", agent_status_icon(status));
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -296,6 +296,19 @@ pub(crate) fn collect_agents(
         }
     }
     entries
+}
+
+fn agent_status_icon(status: &str) -> &'static str {
+    let status = status.to_lowercase();
+    if status.contains("block") || status.contains("error") || status.contains("fail") {
+        "!"
+    } else if status.contains("done") || status.contains("complete") {
+        "✓"
+    } else if status.contains("work") || status.contains("run") {
+        "●"
+    } else {
+        "○"
+    }
 }
 
 pub(crate) fn collect_zoxide() -> Vec<Entry> {
@@ -369,6 +382,14 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_status_icons_are_plain_unicode() {
+        assert_eq!(agent_status_icon("working"), "●");
+        assert_eq!(agent_status_icon("done"), "✓");
+        assert_eq!(agent_status_icon("blocked"), "!");
+        assert_eq!(agent_status_icon("idle"), "○");
+    }
 
     #[test]
     fn parses_simple_ssh_config_hosts() {

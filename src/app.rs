@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs,
+    env, fs,
     path::Path,
 };
 
@@ -224,6 +224,9 @@ impl App {
                 .ok_or("no open workspace for selected item")?;
             (id, e.title.clone())
         };
+        if let Some(err) = close_current_workspace_error(&id, launch_workspace_id().as_deref()) {
+            return Err(err);
+        }
         run_herdr(["workspace", "close", &id])?;
         notify_done(&format!("Closed {title}"));
         self.refresh();
@@ -455,9 +458,9 @@ fn all_match_either(tokens: &[String], left: &str, right: &str) -> bool {
 fn agent_status_bonus(entry: &Entry) -> i64 {
     let status = status_text(entry);
     if status.contains("block") {
-        10_000
+        3
     } else if status.contains("done") || status.contains("complete") {
-        9_000
+        2
     } else if [
         "need",
         "attention",
@@ -471,9 +474,9 @@ fn agent_status_bonus(entry: &Entry) -> i64 {
     .iter()
     .any(|needle| status.contains(needle))
     {
-        8_000
+        1
     } else {
-        1_000
+        0
     }
 }
 
@@ -510,6 +513,20 @@ fn ssh_connect_command(target: &str) -> String {
     format!(
         "if command -v autossh >/dev/null 2>&1; then exec autossh -M 0 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; else exec ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; fi"
     )
+}
+
+fn launch_workspace_id() -> Option<String> {
+    env::var("HERDR_PLUGIN_CONTEXT_JSON")
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get("workspace_id")?.as_str().map(str::to_string))
+        .filter(|s| !s.is_empty())
+}
+
+fn close_current_workspace_error(id: &str, current: Option<&str>) -> Option<String> {
+    (current == Some(id)).then(|| {
+        "can't close the workspace that owns this picker; switch away first".into()
+    })
 }
 
 fn shell_quote(value: &str) -> String {
@@ -633,8 +650,9 @@ mod tests {
         assert!(Query::parse("@").filters_match(&blocked));
         assert!(Query::parse("@idle").filters_match(&idle));
         assert!(Query::parse("@Dotfiles").filters_match(&idle));
-        assert!(agent_status_bonus(&blocked) > agent_status_bonus(&done));
-        assert!(agent_status_bonus(&done) > agent_status_bonus(&idle));
+        assert_eq!(agent_status_bonus(&blocked), 3);
+        assert_eq!(agent_status_bonus(&done), 2);
+        assert_eq!(agent_status_bonus(&idle), 0);
         assert_eq!(agent_sort("priority"), "priority");
         assert_eq!(agent_sort("spaces"), "spaces");
     }
@@ -713,6 +731,16 @@ mod tests {
         assert_eq!(app.workspace_to_close(&project), Some("w1".into()));
         assert_eq!(app.workspace_to_close(&dir), Some("w2".into()));
         assert_eq!(app.workspace_to_close(&server), Some("w3".into()));
+    }
+
+    #[test]
+    fn refuses_to_close_picker_owning_workspace() {
+        assert_eq!(
+            close_current_workspace_error("w1", Some("w1")),
+            Some("can't close the workspace that owns this picker; switch away first".into())
+        );
+        assert_eq!(close_current_workspace_error("w1", Some("w2")), None);
+        assert_eq!(close_current_workspace_error("w1", None), None);
     }
 
     #[test]

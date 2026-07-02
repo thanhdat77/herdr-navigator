@@ -20,6 +20,13 @@ use crate::{
     theme::Theme,
 };
 
+// Key icons: plain Unicode only, no Nerd Font dependency.
+const KEY_CTRL_S: &str = "⌃S";
+const KEY_CTRL_A: &str = "⌃A";
+const KEY_CTRL_X: &str = "⌃X";
+const KEY_CTRL_O: &str = "⌃O";
+const KEY_ENTER: &str = "↵";
+
 pub(crate) fn tui_loop(app: &mut App) -> io::Result<()> {
     enable_raw_mode()?;
     let mut out = io::stdout();
@@ -188,7 +195,9 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "Ctrl-S servers  @/Ctrl-A agents  Ctrl-X close workspace  Ctrl-O preview  Enter open  Esc quit";
+    let help = format!(
+        "{KEY_CTRL_S} servers  {KEY_CTRL_A} agents  {KEY_CTRL_X} close  {KEY_CTRL_O} preview  {KEY_ENTER} open  Esc quit"
+    );
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
