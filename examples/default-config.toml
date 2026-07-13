@@ -19,7 +19,7 @@ engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
 # Accepted names: agent, server/remote, workspace/open, project, session, zoxide, root, quick, plugin.
-source_order = ["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
+source_order = ["agent", "workspace", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.

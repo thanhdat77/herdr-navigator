@@ -4,7 +4,7 @@
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
+source_order = ["agent", "workspace", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
