@@ -209,7 +209,7 @@ On first run, the plugin creates `config.toml` from [`examples/default-config.to
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["agent", "workspace", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
+source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
@@ -334,7 +334,7 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 
 ```toml
 [picker]
-source_order = ["agent", "workspace", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
+source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
