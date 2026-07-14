@@ -20,6 +20,12 @@ title = "Picker Plus: side pane"
 contexts = ["workspace", "global"]
 command = ["./target/release/herdr-picker-plus", "open-side"]
 
+[[actions]]
+id = "jump-back"
+title = "Picker Plus: jump back"
+contexts = ["workspace", "global"]
+command = ["./target/release/herdr-picker-plus", "jump-back"]
+
 [[panes]]
 id = "picker"
 title = "Picker Plus"

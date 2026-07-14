@@ -11,6 +11,8 @@ pub(crate) struct Config {
     #[serde(default)]
     pub(crate) picker: PickerConfig,
     #[serde(default)]
+    pub(crate) jump_back: JumpBackConfig,
+    #[serde(default)]
     pub(crate) sources: SourcesConfig,
     #[serde(default)]
     pub(crate) theme: ThemeConfig,
@@ -47,6 +49,15 @@ pub(crate) struct PickerConfig {
     #[serde(default)]
     pub(crate) filter_keys: HashMap<String, String>,
 }
+
+#[derive(Clone, Deserialize)]
+pub(crate) struct JumpBackConfig {
+    #[serde(default = "yes")]
+    pub(crate) enabled: bool,
+    #[serde(default = "yes")]
+    pub(crate) pin_previous: bool,
+}
+
 #[derive(Clone, Deserialize)]
 pub(crate) struct SourcesConfig {
     #[serde(default = "yes")]
@@ -262,6 +273,14 @@ impl PickerConfig {
         (total - rank).max(0) * self.source_priority_boost
     }
 }
+impl Default for JumpBackConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            pin_previous: true,
+        }
+    }
+}
 impl Default for SourcesConfig {
     fn default() -> Self {
         Self {
@@ -295,6 +314,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             picker: PickerConfig::default(),
+            jump_back: JumpBackConfig::default(),
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
             sessions: SessionsConfig::default(),
@@ -347,6 +367,29 @@ mod tests {
         assert_eq!(picker.source_rank(&Source::Root), 5);
         assert_eq!(picker.source_rank(&Source::Server), 6);
         assert!(picker.source_bonus(&Source::Root) > picker.source_bonus(&Source::Server));
+    }
+
+    #[test]
+    fn jump_back_defaults_to_enabled_and_pinned() {
+        let config = Config::default();
+
+        assert!(config.jump_back.enabled);
+        assert!(config.jump_back.pin_previous);
+    }
+
+    #[test]
+    fn parses_jump_back_config() {
+        let config: Config = toml::from_str(
+            r#"
+            [jump_back]
+            enabled = false
+            pin_previous = false
+            "#,
+        )
+        .unwrap();
+
+        assert!(!config.jump_back.enabled);
+        assert!(!config.jump_back.pin_previous);
     }
 
     #[test]

@@ -10,7 +10,7 @@ use crate::{
     integrations::{command, herdr_plus, sessions},
     matcher::match_score,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
-    paths::{canonical_str, herdr_plus_quick_actions_dir, home},
+    paths::{canonical_str, herdr_plus_quick_actions_dir, home, plugin_config_dir},
     sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
 };
@@ -34,6 +34,7 @@ pub(crate) struct App {
     pub(crate) source_filter: Option<Source>,
     pub(crate) preview: bool,
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
+    pub(crate) previous_workspace_id: Option<String>,
 }
 
 impl App {
@@ -51,6 +52,7 @@ impl App {
             source_filter: None,
             preview,
             path_to_workspaces: HashMap::new(),
+            previous_workspace_id: None,
         }
     }
 
@@ -102,6 +104,12 @@ impl App {
         );
 
         self.entries = entries;
+        self.previous_workspace_id =
+            if self.config.jump_back.enabled && self.config.jump_back.pin_previous {
+                read_previous_workspace().ok()
+            } else {
+                None
+            };
         self.apply_filter();
     }
 
@@ -113,6 +121,10 @@ impl App {
         let use_agent_priority = empty_query
             && (agent_view || self.source_filter.is_none())
             && agent_sort(&self.config.picker.agent_sort) == "priority";
+        let pin_previous = self.config.jump_back.enabled
+            && self.config.jump_back.pin_previous
+            && self.query.trim().is_empty()
+            && self.source_filter.is_none();
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
@@ -134,8 +146,17 @@ impl App {
             }
         }
         scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
-            score_b
-                .cmp(score_a)
+            let pinned_a = pin_previous
+                && self.entries[*idx_a].source == Source::Workspace
+                && self.entries[*idx_a].workspace_id.as_deref()
+                    == self.previous_workspace_id.as_deref();
+            let pinned_b = pin_previous
+                && self.entries[*idx_b].source == Source::Workspace
+                && self.entries[*idx_b].workspace_id.as_deref()
+                    == self.previous_workspace_id.as_deref();
+            pinned_b
+                .cmp(&pinned_a)
+                .then_with(|| score_b.cmp(score_a))
                 .then_with(|| {
                     self.config
                         .picker
@@ -194,6 +215,19 @@ impl App {
 
     pub(crate) fn open_selected(&self) -> Result<(), String> {
         let e = self.selected_entry().ok_or("nothing selected")?;
+        let tracks_workspace_transition = self.config.jump_back.enabled
+            && matches!(
+                &e.action,
+                EntryAction::FocusAgent { .. }
+                    | EntryAction::FocusWorkspace { .. }
+                    | EntryAction::OpenProject
+                    | EntryAction::FocusOrCreateDir
+            );
+        let origin_workspace = if tracks_workspace_transition {
+            launch_workspace_id().or_else(|| current_workspace_id().ok())
+        } else {
+            None
+        };
         let (result, notify_success, notify_failure) = match &e.action {
             EntryAction::FocusAgent { target } => {
                 (run_herdr(["agent", "focus", target]), true, true)
@@ -227,6 +261,15 @@ impl App {
 
         match result {
             Ok(()) => {
+                if tracks_workspace_transition {
+                    let destination = current_workspace_id().ok();
+                    if let Some(previous) = previous_workspace_to_record(
+                        origin_workspace.as_deref(),
+                        destination.as_deref(),
+                    ) {
+                        let _ = save_previous_workspace(previous);
+                    }
+                }
                 if notify_success {
                     notify_done(&format!("Opened {}", e.title));
                 }
@@ -479,6 +522,89 @@ fn workspace_text(entry: &Entry) -> String {
     )
 }
 
+const JUMP_BACK_STATE_FILE: &str = "jump-back-workspace";
+
+pub(crate) fn jump_back(config: &Config) -> Result<String, String> {
+    if !config.jump_back.enabled {
+        return Err("jump back is disabled in config".into());
+    }
+    let json = herdr_json(["workspace", "list"])?;
+    let current = focused_workspace_id(&json)
+        .ok_or("can't determine the current workspace")?
+        .to_string();
+    let previous = read_previous_workspace()?;
+    if previous == current {
+        return Err("no previous workspace yet".into());
+    }
+    let Some(label) = workspace_label(&json, &previous).map(str::to_string) else {
+        let _ = fs::remove_file(plugin_config_dir().join(JUMP_BACK_STATE_FILE));
+        return Err("previous workspace no longer exists".into());
+    };
+
+    run_herdr(["workspace", "focus", &previous])?;
+    save_previous_workspace(&current)?;
+    Ok(label)
+}
+
+fn focused_workspace_id(json: &serde_json::Value) -> Option<&str> {
+    json.pointer("/result/workspaces")
+        .and_then(|v| v.as_array())?
+        .iter()
+        .find(|workspace| workspace.get("focused").and_then(|v| v.as_bool()) == Some(true))?
+        .get("workspace_id")?
+        .as_str()
+}
+
+fn workspace_label<'a>(json: &'a serde_json::Value, id: &str) -> Option<&'a str> {
+    json.pointer("/result/workspaces")
+        .and_then(|v| v.as_array())?
+        .iter()
+        .find(|workspace| workspace.get("workspace_id").and_then(|v| v.as_str()) == Some(id))?
+        .get("label")?
+        .as_str()
+}
+
+fn current_workspace_id() -> Result<String, String> {
+    let json = herdr_json(["workspace", "list"])?;
+    focused_workspace_id(&json)
+        .map(str::to_string)
+        .ok_or_else(|| "can't determine the current workspace".into())
+}
+
+fn previous_workspace_to_record<'a>(
+    origin: Option<&'a str>,
+    destination: Option<&str>,
+) -> Option<&'a str> {
+    match (origin, destination) {
+        (Some(origin), Some(destination)) if origin != destination => Some(origin),
+        _ => None,
+    }
+}
+
+fn read_previous_workspace() -> Result<String, String> {
+    let path = plugin_config_dir().join(JUMP_BACK_STATE_FILE);
+    let value = fs::read_to_string(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            "no previous workspace yet".into()
+        } else {
+            format!("failed to read jump-back state: {error}")
+        }
+    })?;
+    let value = value.trim();
+    if value.is_empty() {
+        Err("no previous workspace yet".into())
+    } else {
+        Ok(value.into())
+    }
+}
+
+fn save_previous_workspace(id: &str) -> Result<(), String> {
+    let dir = plugin_config_dir();
+    fs::create_dir_all(&dir).map_err(|e| format!("failed to create plugin config: {e}"))?;
+    fs::write(dir.join(JUMP_BACK_STATE_FILE), id)
+        .map_err(|e| format!("failed to save jump-back state: {e}"))
+}
+
 fn launch_workspace_id() -> Option<String> {
     env::var("HERDR_PLUGIN_CONTEXT_JSON")
         .ok()
@@ -643,6 +769,40 @@ mod tests {
     }
 
     #[test]
+    fn previous_workspace_is_pinned_only_on_initial_unfiltered_view() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut alpha = entry(Source::Workspace, "/alpha", "alpha");
+        alpha.workspace_id = Some("w1".into());
+        alpha.action = EntryAction::FocusWorkspace { id: "w1".into() };
+        let mut zulu = entry(Source::Workspace, "/zulu", "zulu");
+        zulu.workspace_id = Some("w2".into());
+        zulu.action = EntryAction::FocusWorkspace { id: "w2".into() };
+        app.entries = vec![alpha, zulu];
+        app.previous_workspace_id = Some("w2".into());
+
+        app.apply_filter();
+        assert_eq!(
+            app.selected_entry().unwrap().workspace_id.as_deref(),
+            Some("w2")
+        );
+
+        app.source_filter = Some(Source::Workspace);
+        app.apply_filter();
+        assert_eq!(
+            app.selected_entry().unwrap().workspace_id.as_deref(),
+            Some("w1")
+        );
+
+        app.source_filter = None;
+        app.config.jump_back.pin_previous = false;
+        app.apply_filter();
+        assert_eq!(
+            app.selected_entry().unwrap().workspace_id.as_deref(),
+            Some("w1")
+        );
+    }
+
+    #[test]
     fn source_specific_reuse_distinguishes_same_path_workspaces() {
         let mut app = App::new(Config::default(), Theme::load(false));
         app.path_to_workspaces.insert(
@@ -722,5 +882,30 @@ mod tests {
         );
 
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn jump_back_records_only_real_workspace_transitions() {
+        assert_eq!(
+            previous_workspace_to_record(Some("w1"), Some("w2")),
+            Some("w1")
+        );
+        assert_eq!(previous_workspace_to_record(Some("w1"), Some("w1")), None);
+        assert_eq!(previous_workspace_to_record(None, Some("w2")), None);
+        assert_eq!(previous_workspace_to_record(Some("w1"), None), None);
+    }
+
+    #[test]
+    fn jump_back_resolves_focused_and_previous_workspaces() {
+        let json = serde_json::json!({
+            "result": {"workspaces": [
+                {"workspace_id": "w1", "label": "one", "focused": false},
+                {"workspace_id": "w2", "label": "two", "focused": true}
+            ]}
+        });
+
+        assert_eq!(focused_workspace_id(&json), Some("w2"));
+        assert_eq!(workspace_label(&json, "w1"), Some("one"));
+        assert_eq!(workspace_label(&json, "missing"), None);
     }
 }

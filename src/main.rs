@@ -25,10 +25,11 @@ fn main() {
     match env::args().nth(1).as_deref() {
         Some("open") => open_picker(),
         Some("open-side") => open_side_picker(),
+        Some("jump-back") => jump_back(),
         Some("ui") => run_ui(env::args().nth(2).as_deref() == Some("--side")),
         Some("list") => debug_list(),
         _ => {
-            eprintln!("usage: herdr-picker-plus <open|open-side|ui|list>");
+            eprintln!("usage: herdr-picker-plus <open|open-side|jump-back|ui|list>");
             process::exit(2);
         }
     }
@@ -125,6 +126,21 @@ fn run_plugin_pane_cmd(cmd: &str, pane_id: &str) -> ! {
         .args(["plugin", "pane", cmd, pane_id])
         .status();
     process::exit(status.ok().and_then(|s| s.code()).unwrap_or(1));
+}
+
+fn jump_back() -> ! {
+    let config = Config::load();
+    match app::jump_back(&config) {
+        Ok(label) => {
+            herdr::notify_done(&format!("Jumped back to {label}"));
+            process::exit(0);
+        }
+        Err(error) => {
+            herdr::notify_error(&format!("Jump back failed: {error}"));
+            eprintln!("jump back failed: {error}");
+            process::exit(1);
+        }
+    }
 }
 
 fn run_ui(persist: bool) -> ! {

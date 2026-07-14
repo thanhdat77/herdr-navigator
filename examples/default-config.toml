@@ -46,6 +46,17 @@ vim_filter_search = false
 # [picker.filter_keys]
 # server = "ctrl-g"
 
+[jump_back]
+# Master switch for Jump Back.
+# - true: remember successful local workspace changes and enable the jump-back action
+# - false: do not record, pin, or jump; any saved history is kept for later re-enabling
+# The global keybinding itself belongs in Herdr's main config; see README.md.
+enabled = true
+
+# Put the previous workspace first when the picker opens with no query or source filter.
+# This only changes the initial view; typed searches and Ctrl source filters keep normal ranking.
+pin_previous = true
+
 [sources]
 # Existing Herdr workspaces. Selecting focuses the workspace.
 open_workspaces = true

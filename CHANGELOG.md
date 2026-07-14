@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Configurable Jump Back action (`herdr-picker-plus.jump-back`) toggles to the workspace left by the last successful local picker navigation and can pin that workspace first in the initial picker view.
 - Persistent side pane mode: the `open-side` action opens the picker in a right split (like herdr-file-viewer). Launch-or-focus, toggles closed when already focused, and the picker stays open after `Enter`.
 - Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
 - `Ctrl-X` closes the selected/open matching workspace without closing the picker; the picker refuses to close its owning workspace.

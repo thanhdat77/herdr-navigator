@@ -165,6 +165,38 @@ command = "herdr-picker-plus.open-side"
 description = "picker side pane"
 ```
 
+## Jump back
+
+Successful local workspace navigation remembers the workspace you left. Invoke the dedicated action to toggle between the current and previous workspace:
+
+```bash
+herdr plugin action invoke herdr-picker-plus.jump-back
+```
+
+Optional tmux-style keybinding:
+
+```toml
+[[keys.command]]
+key = "prefix+l"
+type = "plugin_action"
+command = "herdr-picker-plus.jump-back"
+description = "jump to previous workspace"
+```
+
+If the previous workspace has been closed, Picker clears the stale target and reports the error.
+
+Configure the behavior in the plugin config:
+
+```toml
+[jump_back]
+# Record successful local workspace changes and enable the action.
+enabled = true
+# Pin the previous workspace first when the picker opens unfiltered.
+pin_previous = true
+```
+
+The action key stays in Herdr's main config because Herdr owns global keybindings.
+
 ## Usage
 
 | Key | Action |
@@ -219,6 +251,12 @@ vim_filter_search = false
 # Optional shortcut overrides. Values accept "ctrl-x", "ctrl+x", "^x", or "x".
 # [picker.filter_keys]
 # server = "ctrl-g"
+
+[jump_back]
+# Enable transition history and the jump-back action.
+enabled = true
+# Pin the previous workspace in the initial unfiltered picker view.
+pin_previous = true
 
 [sources]
 open_workspaces = true
@@ -535,6 +573,7 @@ zoxide query -l
 
 ## Project docs
 
+- [`docs/roadmap.md`](docs/roadmap.md): planned features and scope boundaries
 - [`docs/architecture.md`](docs/architecture.md): architecture and runtime flow
 - [`docs/integrations.md`](docs/integrations.md): integration patterns for Herdr and other plugins
 - [`docs/plugin-integrations.md`](docs/plugin-integrations.md): command/JSON integration contract
