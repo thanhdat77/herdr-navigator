@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Non-blocking daily GitHub release checks show an `↑ vX.Y.Z available` header badge; `picker.check_updates = false` disables them and network failures stay silent.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added

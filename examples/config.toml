@@ -9,6 +9,7 @@ source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 detailed_rows = true
+check_updates = true
 
 [jump_back]
 # Record workspace transitions and enable herdr-picker-plus.jump-back.

@@ -38,6 +38,10 @@ preview = true
 # entries expand to a second full-path line. Set false for the compact list.
 detailed_rows = true
 
+# Check GitHub releases in the background at most once per day. Network errors
+# are ignored; a newer version appears as a badge in the Navigator header.
+check_updates = true
+
 # Vim-style normal mode: j/k move, source keys filter, and / starts searching.
 vim_mode = false
 

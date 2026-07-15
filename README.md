@@ -192,6 +192,7 @@ source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 detailed_rows = true # source-aware Herdr-style result rows
+check_updates = true # daily background release check
 vim_mode = false
 
 [sources]
@@ -212,6 +213,7 @@ max_depth = 3
 Useful config surfaces:
 
 - `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
+- `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available` in the header; failures stay silent.
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
 - `[sessions]` controls local sessions and manual remote targets.

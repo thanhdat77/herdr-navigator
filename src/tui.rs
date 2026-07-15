@@ -1,4 +1,8 @@
-use std::{io, time::Duration};
+use std::{
+    io,
+    sync::mpsc::{Receiver, TryRecvError},
+    time::Duration,
+};
 
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -23,15 +27,32 @@ use crate::{
     theme::Theme,
 };
 
-pub(crate) fn tui_loop(app: &mut App, persist: bool) -> io::Result<()> {
+pub(crate) fn tui_loop(
+    app: &mut App,
+    persist: bool,
+    mut update_check: Option<Receiver<Option<String>>>,
+) -> io::Result<()> {
     enable_raw_mode()?;
     let mut out = io::stdout();
     execute!(out, EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(out))?;
     let result = loop {
+        if let Some(result) = update_check.as_ref().map(Receiver::try_recv) {
+            match result {
+                Ok(version) => {
+                    app.update_available = version;
+                    update_check = None;
+                }
+                Err(TryRecvError::Disconnected) => update_check = None,
+                Err(TryRecvError::Empty) => {}
+            }
+        }
         terminal.draw(|f| draw(f, app))?;
-        if has_working_entry(app) && !event::poll(Duration::from_millis(125))? {
-            app.spinner_tick = app.spinner_tick.wrapping_add(1);
+        let animate = has_working_entry(app);
+        if (animate || update_check.is_some()) && !event::poll(Duration::from_millis(125))? {
+            if animate {
+                app.spinner_tick = app.spinner_tick.wrapping_add(1);
+            }
             continue;
         }
         match event::read()? {
@@ -188,11 +209,22 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
 fn draw(f: &mut Frame, app: &App) {
     let area = f.area();
     f.render_widget(Clear, area);
-    let outer = Block::default()
+    let mut outer = Block::default()
         .style(Style::default().bg(app.theme.panel_bg))
         .title(" Herdr Navigator ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(app.theme.accent));
+    if let Some(version) = &app.update_available {
+        outer = outer.title_top(
+            Line::from(Span::styled(
+                format!(" ↑ v{version} available "),
+                Style::default()
+                    .fg(app.theme.yellow)
+                    .add_modifier(Modifier::BOLD),
+            ))
+            .right_aligned(),
+        );
+    }
     let inner = outer.inner(area);
     f.render_widget(outer, area);
 
@@ -820,6 +852,18 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    #[test]
+    fn update_badge_renders_in_the_header() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.update_available = Some("0.4.0".into());
+
+        let backend = TestBackend::new(70, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &app)).unwrap();
+
+        assert!(buffer_text(&terminal).contains("↑ v0.4.0 available"));
     }
 
     #[test]

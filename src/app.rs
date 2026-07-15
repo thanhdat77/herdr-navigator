@@ -36,6 +36,7 @@ pub(crate) struct App {
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
     pub(crate) previous_workspace_id: Option<String>,
     pub(crate) spinner_tick: u32,
+    pub(crate) update_available: Option<String>,
 }
 
 impl App {
@@ -55,6 +56,7 @@ impl App {
             path_to_workspaces: HashMap::new(),
             previous_workspace_id: None,
             spinner_tick: 0,
+            update_available: None,
         }
     }
 

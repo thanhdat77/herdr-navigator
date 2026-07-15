@@ -14,6 +14,7 @@ mod paths;
 mod sources;
 mod theme;
 mod tui;
+mod update;
 
 use app::App;
 use config::Config;
@@ -159,11 +160,13 @@ fn jump_back() -> ! {
 
 fn run_ui(persist: bool) -> ! {
     let config = Config::load();
+    let check_updates = config.picker.check_updates;
     let theme = Theme::load(config.theme.inherit_herdr);
     let mut app = App::new(config, theme);
     app.refresh();
+    let update_check = check_updates.then(update::check_in_background);
 
-    if let Err(e) = tui_loop(&mut app, persist) {
+    if let Err(e) = tui_loop(&mut app, persist, update_check) {
         eprintln!("picker plus error: {e}");
         process::exit(1);
     }

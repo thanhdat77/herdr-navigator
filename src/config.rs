@@ -44,6 +44,8 @@ pub(crate) struct PickerConfig {
     pub(crate) preview: bool,
     #[serde(default = "yes")]
     pub(crate) detailed_rows: bool,
+    #[serde(default = "yes")]
+    pub(crate) check_updates: bool,
     #[serde(default)]
     pub(crate) vim_mode: bool,
     #[serde(default)]
@@ -219,6 +221,7 @@ impl Default for PickerConfig {
             agent_sort: default_agent_sort(),
             preview: true,
             detailed_rows: true,
+            check_updates: true,
             vim_mode: false,
             vim_filter_search: false,
             filter_keys: HashMap::new(),
@@ -385,6 +388,21 @@ mod tests {
         .unwrap();
 
         assert!(!config.picker.detailed_rows);
+    }
+
+    #[test]
+    fn update_checks_default_on_and_can_be_disabled() {
+        assert!(Config::default().picker.check_updates);
+
+        let config: Config = toml::from_str(
+            r#"
+            [picker]
+            check_updates = false
+            "#,
+        )
+        .unwrap();
+
+        assert!(!config.picker.check_updates);
     }
 
     #[test]
