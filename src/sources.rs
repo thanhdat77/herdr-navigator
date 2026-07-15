@@ -207,10 +207,6 @@ fn agents_from_json(
 
 const AGENT_SPINNER: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-pub(crate) fn agent_status_icon(status: &str) -> &'static str {
-    agent_status_icon_at(status, 0)
-}
-
 pub(crate) fn agent_status_icon_at(status: &str, tick: u32) -> &'static str {
     let status = status.to_lowercase();
     if status.contains("block")
@@ -330,11 +326,11 @@ mod tests {
 
     #[test]
     fn agent_status_icons_match_herdr_navigator() {
-        assert_eq!(agent_status_icon("working"), "⠋");
+        assert_eq!(agent_status_icon_at("working", 0), "⠋");
         assert_eq!(agent_status_icon_at("working", 1), "⠙");
-        assert_eq!(agent_status_icon("done"), "✓");
-        assert_eq!(agent_status_icon("blocked"), "◉");
-        assert_eq!(agent_status_icon("idle"), "●");
-        assert_eq!(agent_status_icon("unknown"), "○");
+        assert_eq!(agent_status_icon_at("done", 0), "✓");
+        assert_eq!(agent_status_icon_at("blocked", 0), "◉");
+        assert_eq!(agent_status_icon_at("idle", 0), "●");
+        assert_eq!(agent_status_icon_at("unknown", 0), "○");
     }
 }
