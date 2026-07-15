@@ -41,7 +41,7 @@ fn open_picker() -> ! {
 
 // Must match the `title` of the `picker-side` [[panes]] entry in herdr-plugin.toml;
 // it is how the toggle finds an already-open side pane in `herdr pane list`.
-const SIDE_PANE_LABEL: &str = "Picker Side";
+const SIDE_PANE_LABEL: &str = "Navigator Side";
 
 enum SideDecision {
     Open,

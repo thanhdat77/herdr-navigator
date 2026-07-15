@@ -1,4 +1,4 @@
-# Herdr Picker Plus default config
+# Herdr Navigator default config
 # Location after first run:
 #   $(herdr plugin config-dir herdr-picker-plus)/config.toml
 

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">Herdr Navigator</title>
+  <desc id="desc">Jump to anything in Herdr from one fuzzy navigator.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#131c2b"/>
+    </linearGradient>
+    <linearGradient id="needle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#66b3ff"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#8b949e" stroke-opacity=".08"/>
+    </pattern>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="22" fill="url(#grid)"/>
+  <path d="M0 250C215 205 285 297 490 252S770 176 1200 228V320H0Z" fill="#66b3ff" fill-opacity=".04"/>
+
+  <g transform="translate(72 52)">
+    <rect width="216" height="216" rx="48" fill="#161f2d" stroke="#66b3ff" stroke-opacity=".32" stroke-width="2"/>
+    <circle cx="108" cy="108" r="70" fill="none" stroke="#8b949e" stroke-opacity=".25" stroke-width="2"/>
+    <circle cx="108" cy="108" r="43" fill="none" stroke="#66b3ff" stroke-opacity=".18"/>
+    <path d="M108 38V53M108 163V178M38 108H53M163 108H178" stroke="#8b949e" stroke-width="3" stroke-linecap="round"/>
+    <path d="M135 73L117 118 72 136 91 91Z" fill="url(#needle)" filter="url(#glow)"/>
+    <circle cx="108" cy="108" r="8" fill="#f6c453"/>
+    <path d="M15 66H43L64 87M15 150H43L64 129M201 66H173L152 87M201 150H173L152 129" fill="none" stroke="#66b3ff" stroke-opacity=".55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="15" cy="66" r="5" fill="#66b3ff"/>
+    <circle cx="15" cy="150" r="5" fill="#c084fc"/>
+    <circle cx="201" cy="66" r="5" fill="#f6c453"/>
+    <circle cx="201" cy="150" r="5" fill="#66b3ff"/>
+  </g>
+
+  <g font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+    <text x="340" y="105" fill="#66b3ff" font-size="17" font-weight="700" letter-spacing="4">HERDR PLUGIN</text>
+    <text x="340" y="163" fill="#f0f6fc" font-size="54" font-weight="760" letter-spacing="-1.5">Herdr Navigator</text>
+    <text x="340" y="205" fill="#b6c2d0" font-size="25">Jump to anything in Herdr.</text>
+    <text x="340" y="240" fill="#8b949e" font-size="17">Type what you remember. Enter does the right thing.</text>
+
+    <g transform="translate(340 264)" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" font-weight="650">
+      <g><rect width="116" height="28" rx="14" fill="#66b3ff" fill-opacity=".12" stroke="#66b3ff" stroke-opacity=".45"/><text x="58" y="19" fill="#8ec8ff" text-anchor="middle">WORKSPACES</text></g>
+      <g transform="translate(126)"><rect width="82" height="28" rx="14" fill="#c084fc" fill-opacity=".12" stroke="#c084fc" stroke-opacity=".45"/><text x="41" y="19" fill="#d4a8ff" text-anchor="middle">AGENTS</text></g>
+      <g transform="translate(218)"><rect width="96" height="28" rx="14" fill="#f6c453" fill-opacity=".1" stroke="#f6c453" stroke-opacity=".42"/><text x="48" y="19" fill="#f6c453" text-anchor="middle">PROJECTS</text></g>
+      <g transform="translate(324)"><rect width="96" height="28" rx="14" fill="#66b3ff" fill-opacity=".12" stroke="#66b3ff" stroke-opacity=".45"/><text x="48" y="19" fill="#8ec8ff" text-anchor="middle">SESSIONS</text></g>
+      <g transform="translate(430)"><rect width="88" height="28" rx="14" fill="#c084fc" fill-opacity=".12" stroke="#c084fc" stroke-opacity=".45"/><text x="44" y="19" fill="#d4a8ff" text-anchor="middle">REMOTES</text></g>
+      <g transform="translate(528)"><rect width="88" height="28" rx="14" fill="#f6c453" fill-opacity=".1" stroke="#f6c453" stroke-opacity=".42"/><text x="44" y="19" fill="#f6c453" text-anchor="middle">ACTIONS</text></g>
+    </g>
+  </g>
+</svg>

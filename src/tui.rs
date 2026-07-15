@@ -185,7 +185,7 @@ fn draw(f: &mut Frame, app: &App) {
     f.render_widget(Clear, area);
     let outer = Block::default()
         .style(Style::default().bg(app.theme.panel_bg))
-        .title(" Herdr Picker Plus ")
+        .title(" Herdr Navigator ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(app.theme.accent));
     let inner = outer.inner(area);

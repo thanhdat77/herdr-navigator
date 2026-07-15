@@ -1,6 +1,6 @@
 # Plugin integrations
 
-Herdr Picker Plus can show items from other tools/plugins through a small command/JSON contract.
+Herdr Navigator can show items from other tools/plugins through a small command/JSON contract.
 
 ## Contract v1
 
@@ -57,11 +57,11 @@ Fields:
 | `title` | yes | picker row title |
 | `subtitle` | no | extra detail shown beside the title |
 | `path` | no | optional path for matching/search/preview |
-| `kind` | no | free-form type chosen by the integration; Picker Plus does not interpret it |
+| `kind` | no | free-form type chosen by the integration; Navigator does not interpret it |
 
 ## Open command templates
 
-Picker Plus replaces these variables in `open`:
+Navigator replaces these variables in `open`:
 
 ```text
 {{id}}
@@ -81,7 +81,7 @@ open = "bookmarks open {{id}} --path {{path}}"
 
 ## Notifications
 
-Picker Plus owns default notifications:
+Navigator owns default notifications:
 
 - collect failure: skip quietly
 - open success: show success notification

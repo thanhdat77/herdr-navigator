@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make Herdr Picker Plus a real picker center with a clean integration layer:
+Make Herdr Navigator a real picker center with a clean integration layer:
 
 - Herdr Plus becomes a built-in integration adapter.
 - Future plugins can integrate without editing picker core code.
@@ -18,7 +18,7 @@ Make Herdr Picker Plus a real picker center with a clean integration layer:
 
 ## Integration contract v1
 
-A plugin that wants to appear in Picker Plus only needs a command API:
+A plugin that wants to appear in Navigator only needs a command API:
 
 ```toml
 [[integrations]]
@@ -53,7 +53,7 @@ Template vars for `open` and notifications:
 {{id}} {{title}} {{subtitle}} {{path}} {{kind}}
 ```
 
-Picker Plus owns default notifications. Plugins do not need to implement a notification API.
+Navigator owns default notifications. Plugins do not need to implement a notification API.
 
 Notification behavior:
 
@@ -65,13 +65,13 @@ Notification behavior:
 Herdr command:
 
 ```bash
-herdr notification show "Picker Plus" --body "Opened Dotfiles" --position top-right --sound done
+herdr notification show "Herdr Navigator" --body "Opened Dotfiles" --position top-right --sound done
 ```
 
 Error command:
 
 ```bash
-herdr notification show "Picker Plus" --body "Failed: <short error>" --position top-right --sound request
+herdr notification show "Herdr Navigator" --body "Failed: <short error>" --position top-right --sound request
 ```
 
 ## Phase 1 — Extract Herdr Plus adapter ✅
@@ -238,6 +238,6 @@ Implemented in the working tree:
 - Herdr Plus adapter under `src/integrations/herdr_plus.rs`.
 - Generic command/JSON adapter under `src/integrations/command.rs`.
 - `EntryAction` dispatch model.
-- User-defined integration source labels via `label`; Picker Plus does not hardcode external source names.
+- User-defined integration source labels via `label`; Navigator does not hardcode external source names.
 - Success/error notifications around selected actions.
 - Public docs and examples for integration authors.

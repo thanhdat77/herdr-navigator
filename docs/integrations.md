@@ -1,6 +1,6 @@
 # Integrations
 
-Herdr Picker Plus is intended to be a picker center. Other Herdr plugins should integrate at the boundary of Herdr actions and config, not by depending on internal Rust modules.
+Herdr Navigator is intended to be a picker center. Other Herdr plugins should integrate at the boundary of Herdr actions and config, not by depending on internal Rust modules.
 
 ## Stable public surface
 
@@ -25,7 +25,7 @@ description = "picker center"
 
 ## From another plugin
 
-Another plugin can open Picker Plus by invoking its action through Herdr:
+Another plugin can open Navigator by invoking its action through Herdr:
 
 ```bash
 herdr plugin action invoke herdr-picker-plus.open
@@ -43,8 +43,8 @@ Current built-in integrations:
 This is the preferred pattern:
 
 ```text
-If the external plugin owns complex UI/execution, Picker Plus should launch/delegate.
-If the external plugin exposes simple declarative data, Picker Plus may read it as a source.
+If the external plugin owns complex UI/execution, Navigator should launch/delegate.
+If the external plugin exposes simple declarative data, Navigator may read it as a source.
 ```
 
 ## Adding future plugin sources

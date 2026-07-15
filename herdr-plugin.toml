@@ -1,8 +1,8 @@
 id = "herdr-picker-plus"
-name = "Picker Plus"
+name = "Herdr Navigator"
 version = "0.2.0"
 min_herdr_version = "0.7.3"
-description = "Move anywhere in your Herdr workflow: search workspaces, SSH servers, agents, projects, actions, directories, and plugin integrations from one native picker."
+description = "Jump to any Herdr workspace, agent, project, session, remote, directory, or action from one fuzzy navigator."
 platforms = ["linux", "macos"]
 
 [[build]]
@@ -10,25 +10,25 @@ command = ["cargo", "build", "--release"]
 
 [[actions]]
 id = "open"
-title = "Picker Plus: open"
+title = "Herdr Navigator: open"
 contexts = ["workspace", "global"]
 command = ["./target/release/herdr-picker-plus", "open"]
 
 [[actions]]
 id = "open-side"
-title = "Picker Plus: side pane"
+title = "Herdr Navigator: side pane"
 contexts = ["workspace", "global"]
 command = ["./target/release/herdr-picker-plus", "open-side"]
 
 [[actions]]
 id = "jump-back"
-title = "Picker Plus: jump back"
+title = "Herdr Navigator: jump back"
 contexts = ["workspace", "global"]
 command = ["./target/release/herdr-picker-plus", "jump-back"]
 
 [[panes]]
 id = "picker"
-title = "Picker Plus"
+title = "Herdr Navigator"
 placement = "overlay"
 command = ["./target/release/herdr-picker-plus", "ui"]
 
@@ -37,6 +37,6 @@ command = ["./target/release/herdr-picker-plus", "ui"]
 # with SIDE_PANE_LABEL in src/main.rs.
 [[panes]]
 id = "picker-side"
-title = "Picker Side"
+title = "Navigator Side"
 placement = "split"
 command = ["./target/release/herdr-picker-plus", "ui", "--side"]

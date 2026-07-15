@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Herdr Navigator</title>
+  <desc id="desc">One fuzzy navigator for every workspace, agent, project, session, remote, and action in Herdr.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#17243a"/>
+    </linearGradient>
+    <linearGradient id="needle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#66b3ff"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#8b949e" stroke-opacity=".08"/>
+    </pattern>
+    <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <circle cx="1030" cy="110" r="260" fill="#66b3ff" fill-opacity=".05"/>
+  <circle cx="100" cy="610" r="280" fill="#c084fc" fill-opacity=".04"/>
+
+  <g transform="translate(105 145)">
+    <rect width="300" height="300" rx="68" fill="#161f2d" stroke="#66b3ff" stroke-opacity=".35" stroke-width="3"/>
+    <circle cx="150" cy="150" r="100" fill="none" stroke="#8b949e" stroke-opacity=".25" stroke-width="3"/>
+    <circle cx="150" cy="150" r="62" fill="none" stroke="#66b3ff" stroke-opacity=".18" stroke-width="2"/>
+    <path d="M150 50V72M150 228V250M50 150H72M228 150H250" stroke="#8b949e" stroke-width="4" stroke-linecap="round"/>
+    <path d="M190 100L164 164 100 190 126 126Z" fill="url(#needle)" filter="url(#glow)"/>
+    <circle cx="150" cy="150" r="11" fill="#f6c453"/>
+    <path d="M18 92H58L87 121M18 208H58L87 179M282 92H242L213 121M282 208H242L213 179" fill="none" stroke="#66b3ff" stroke-opacity=".58" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="18" cy="92" r="7" fill="#66b3ff"/>
+    <circle cx="18" cy="208" r="7" fill="#c084fc"/>
+    <circle cx="282" cy="92" r="7" fill="#f6c453"/>
+    <circle cx="282" cy="208" r="7" fill="#66b3ff"/>
+  </g>
+
+  <g font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+    <text x="485" y="190" fill="#66b3ff" font-size="22" font-weight="700" letter-spacing="5">HERDR PLUGIN</text>
+    <text x="485" y="272" fill="#f0f6fc" font-size="66" font-weight="760" letter-spacing="-2">Herdr Navigator</text>
+    <text x="485" y="330" fill="#b6c2d0" font-size="32">Jump to anything in Herdr.</text>
+    <text x="485" y="382" fill="#8b949e" font-size="21">One fuzzy navigator. The right action on Enter.</text>
+
+    <g transform="translate(485 430)" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14" font-weight="650">
+      <g><rect width="142" height="36" rx="18" fill="#66b3ff" fill-opacity=".12" stroke="#66b3ff" stroke-opacity=".45"/><text x="71" y="24" fill="#8ec8ff" text-anchor="middle">WORKSPACES</text></g>
+      <g transform="translate(154)"><rect width="104" height="36" rx="18" fill="#c084fc" fill-opacity=".12" stroke="#c084fc" stroke-opacity=".45"/><text x="52" y="24" fill="#d4a8ff" text-anchor="middle">AGENTS</text></g>
+      <g transform="translate(270)"><rect width="112" height="36" rx="18" fill="#f6c453" fill-opacity=".1" stroke="#f6c453" stroke-opacity=".42"/><text x="56" y="24" fill="#f6c453" text-anchor="middle">REMOTES</text></g>
+    </g>
+    <text x="485" y="535" fill="#8b949e" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="18">prefix+t  →  type  →  Enter</text>
+  </g>
+</svg>

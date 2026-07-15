@@ -41,7 +41,7 @@ fn notify(body: &str, sound: &str) {
         .args([
             "notification",
             "show",
-            "Picker Plus",
+            "Herdr Navigator",
             "--body",
             &body,
             "--position",

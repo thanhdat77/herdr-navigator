@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Herdr Navigator banner, social preview, and a shorter outcome-led README.
 - Configurable Jump Back action (`herdr-picker-plus.jump-back`) toggles to the workspace left by the last successful local picker navigation and can pin that workspace first in the initial picker view.
 - Persistent side pane mode: the `open-side` action opens the picker in a right split (like herdr-file-viewer). Launch-or-focus, toggles closed when already focused, and the picker stays open after `Enter`.
 - Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
@@ -12,6 +13,7 @@ All notable changes to this project are documented here.
 - Built-in server/remote source from remote `[sessions.entries]`, using `herdr --remote TARGET --handoff`, plus local session entries from `herdr session list --json`.
 
 ### Changed
+- User-facing name is now Herdr Navigator; the stable `herdr-picker-plus` plugin id, binary, config path, and action prefix are unchanged.
 - Agent source now uses the dedicated `herdr agent list` endpoint instead of filtering `herdr pane list`, and agents are searchable by their `agent_session` id.
 - Workspace rows surface the workspace-level `agent_status` from `herdr workspace list` in the subtitle, and match `focused`/status search terms.
 - Requires Herdr 0.7.3+ (`min_herdr_version` bumped for `agent list` and workspace `agent_status`).

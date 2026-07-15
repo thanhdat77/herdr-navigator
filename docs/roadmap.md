@@ -1,6 +1,6 @@
 # Roadmap
 
-Picker Plus stays a small Herdr-native navigation center. New features should reduce the cost of switching context rather than duplicate Herdr session management or existing picker filters.
+Herdr Navigator stays a small Herdr-native navigation center. New features should reduce the cost of switching context rather than duplicate Herdr session management or existing picker filters.
 
 ## Now
 

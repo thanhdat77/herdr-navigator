@@ -1,4 +1,4 @@
-# Add this block to your Herdr Picker Plus config.toml.
+# Add this block to your Herdr Navigator config.toml.
 # The collect command must print a JSON array.
 
 [[integrations]]

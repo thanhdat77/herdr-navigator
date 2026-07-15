@@ -2,8 +2,8 @@
 
 ## Public name
 
-Use only `herdr-picker-plus` / `Herdr Picker Plus`.
-Do not use old plugin ids, old binary names, or personal prefixes.
+Use `Herdr Navigator` as the display name. Keep `herdr-picker-plus` as the stable plugin id, binary name, config directory, repository name, and action prefix for compatibility.
+Do not introduce another technical id or personal prefix.
 
 ## Minimum release quality
 
@@ -46,11 +46,11 @@ Treat a remote server as a Herdr remote target, not a remote session. `Ctrl-S` f
 
 Use a command/JSON list-open contract before building a plugin SDK. This keeps contributor burden low and avoids a speculative framework. Herdr Plus remains built in because it needs Herdr-specific workspace/tab bootstrap behavior.
 
-Picker Plus owns notifications for integration open success/failure so plugin authors only implement list/open.
+Navigator owns notifications for integration open success/failure so plugin authors only implement list/open.
 
 ## Agent search feature shape
 
-Use visible Herdr state first: agent name, workspace label/id, cwd, pane/tab/terminal ids, status. Add token filters for precision and aliases for user memory. Do not invent session names inside Picker Plus; aliases are search-only.
+Use visible Herdr state first: agent name, workspace label/id, cwd, pane/tab/terminal ids, status. Add token filters for precision and aliases for user memory. Do not invent session names inside Navigator; aliases are search-only.
 
 For now, `@` without text is the only agent-view shortcut. It is equivalent to Ctrl-A: main agent view, using `picker.agent_sort`. Default `herdr` reads Herdr `agent_panel_sort`; `priority` forces block first/done second/rest; `spaces` keeps Herdr/pane order. `@text` stays agent-only and matches workspace/session label/id or status text for fast navigation.
 

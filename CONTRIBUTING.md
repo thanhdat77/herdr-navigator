@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve Herdr Picker Plus.
+Thanks for helping improve Herdr Navigator.
 
 ## Development
 

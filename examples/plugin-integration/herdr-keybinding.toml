@@ -1,4 +1,4 @@
-# Example Herdr keybinding for Picker Plus.
+# Example Herdr keybinding for Herdr Navigator.
 # Add this to ~/.config/herdr/config.toml.
 
 [[keys.command]]

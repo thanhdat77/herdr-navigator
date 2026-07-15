@@ -1,6 +1,6 @@
 # Architecture
 
-Herdr Picker Plus is a picker center for Herdr: one overlay for choosing where to go or what Herdr-adjacent action to run.
+Herdr Navigator is a picker center for Herdr: one overlay for choosing where to go or what Herdr-adjacent action to run.
 
 It is similar in spirit to `tv`, but deeper integrated with Herdr. Instead of only returning a selected path/item, it can focus existing Herdr state, create Herdr workspaces, apply Herdr Plus project tabs, focus agents, or launch Herdr Plus Quick Actions.
 
@@ -73,7 +73,7 @@ This keeps the picker useful as a navigation center, not only a launcher.
 
 ## Herdr Plus boundary
 
-Herdr Picker Plus integrates with Herdr Plus but does not copy all Herdr Plus behavior.
+Herdr Navigator integrates with Herdr Plus but does not copy all Herdr Plus behavior.
 
 Current integration:
 

@@ -2,7 +2,7 @@
 name = "herdr-picker-plus"
 version = "0.2.0"
 edition = "2021"
-description = "Move anywhere in your Herdr workflow from one native picker"
+description = "Jump to anything in Herdr from one fuzzy navigator"
 license = "MIT"
 readme = "README.md"
 keywords = ["herdr", "terminal", "tui", "workspace", "picker"]

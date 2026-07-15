@@ -1,10 +1,10 @@
-# Agent Docs: Herdr Picker Plus
+# Agent Docs: Herdr Navigator
 
 Purpose: compact project-only docs for future agents. Prefer intent over line-by-line code notes.
 
 ## Project intent
 
-Herdr Picker Plus is a Herdr picker-center plugin for one fast command-palette flow:
+Herdr Navigator is a Herdr picker-center plugin for one fast command-palette flow:
 
 ```text
 prefix+t -> search -> Enter -> land in the right place

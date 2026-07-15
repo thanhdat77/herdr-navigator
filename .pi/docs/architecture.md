@@ -100,4 +100,4 @@ Built-in adapters live under `src/integrations/`:
 - `herdr_plus.rs`: Herdr Plus projects, Quick Actions, and project tab bootstrap.
 - `command.rs`: generic command/JSON integrations from `[[integrations]]` config.
 
-External plugin contract is intentionally small: `collect` prints JSON items, `open` runs with template vars. Picker Plus owns success/error notifications.
+External plugin contract is intentionally small: `collect` prints JSON items, `open` runs with template vars. Navigator owns success/error notifications.
