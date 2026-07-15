@@ -205,13 +205,27 @@ fn agents_from_json(
     entries
 }
 
+const AGENT_SPINNER: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
 pub(crate) fn agent_status_icon(status: &str) -> &'static str {
+    agent_status_icon_at(status, 0)
+}
+
+pub(crate) fn agent_status_icon_at(status: &str, tick: u32) -> &'static str {
     let status = status.to_lowercase();
-    if status.contains("block") || status.contains("error") || status.contains("fail") {
-        "!"
+    if status.contains("block")
+        || status.contains("error")
+        || status.contains("fail")
+        || status.contains("attention")
+        || status.contains("request")
+        || status.contains("wait")
+    {
+        "◉"
+    } else if status.contains("work") || status.contains("run") {
+        AGENT_SPINNER[tick as usize % AGENT_SPINNER.len()]
     } else if status.contains("done") || status.contains("complete") {
         "✓"
-    } else if status.contains("work") || status.contains("run") {
+    } else if status.contains("idle") {
         "●"
     } else {
         "○"
@@ -315,10 +329,12 @@ mod tests {
     }
 
     #[test]
-    fn agent_status_icons_are_plain_unicode() {
-        assert_eq!(agent_status_icon("working"), "●");
+    fn agent_status_icons_match_herdr_navigator() {
+        assert_eq!(agent_status_icon("working"), "⠋");
+        assert_eq!(agent_status_icon_at("working", 1), "⠙");
         assert_eq!(agent_status_icon("done"), "✓");
-        assert_eq!(agent_status_icon("blocked"), "!");
-        assert_eq!(agent_status_icon("idle"), "○");
+        assert_eq!(agent_status_icon("blocked"), "◉");
+        assert_eq!(agent_status_icon("idle"), "●");
+        assert_eq!(agent_status_icon("unknown"), "○");
     }
 }

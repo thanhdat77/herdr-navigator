@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Herdr-style source-aware result rows align metadata right and expand only zoxide/root entries to a second full-path line; native `prefix+g` glyphs mark selection, focus, blocked, working, idle, done, and unknown states. `picker.detailed_rows = false` restores the compact list.
 - Re-invoking the overlay `open` action focuses the existing Navigator in the current workspace instead of opening a duplicate pane.
 - Herdr Navigator banner, social preview, and a shorter outcome-led README.
 - Configurable Jump Back action (`herdr-picker-plus.jump-back`) toggles to the workspace left by the last successful local picker navigation and can pin that workspace first in the initial picker view.

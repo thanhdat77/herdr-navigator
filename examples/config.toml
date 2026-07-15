@@ -8,6 +8,7 @@ source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "s
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
+detailed_rows = true
 
 [jump_back]
 # Record workspace transitions and enable herdr-picker-plus.jump-back.

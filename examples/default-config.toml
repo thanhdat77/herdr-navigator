@@ -34,6 +34,10 @@ agent_sort = "herdr"
 # Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
 preview = true
 
+# Use Herdr-style source-aware rows: metadata aligns right, while zoxide/root
+# entries expand to a second full-path line. Set false for the compact list.
+detailed_rows = true
+
 # Vim-style normal mode: j/k move, source keys filter, and / starts searching.
 vim_mode = false
 

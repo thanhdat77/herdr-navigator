@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, time::Duration};
 
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -18,7 +18,8 @@ use crate::{
     app::{App, InputMode},
     keymap::{keybindings, Command},
     model::{Entry, EntryAction, Source},
-    sources::agent_status_icon,
+    paths::home,
+    sources::agent_status_icon_at,
     theme::Theme,
 };
 
@@ -29,6 +30,10 @@ pub(crate) fn tui_loop(app: &mut App, persist: bool) -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(out))?;
     let result = loop {
         terminal.draw(|f| draw(f, app))?;
+        if has_working_entry(app) && !event::poll(Duration::from_millis(125))? {
+            app.spinner_tick = app.spinner_tick.wrapping_add(1);
+            continue;
+        }
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => match handle_key(app, key) {
                 Action::Continue => {}
@@ -350,6 +355,126 @@ fn draw_keybindings_help(f: &mut Frame, app: &App, area: Rect) {
     );
 }
 
+fn has_working_entry(app: &App) -> bool {
+    app.entries.iter().filter_map(entry_status).any(|status| {
+        let status = status.to_lowercase();
+        status.contains("work") || status.contains("run")
+    })
+}
+
+fn agent_status_color(theme: &Theme, status: &str) -> Color {
+    let status = status.to_lowercase();
+    if status.contains("block")
+        || status.contains("error")
+        || status.contains("fail")
+        || status.contains("attention")
+        || status.contains("request")
+        || status.contains("wait")
+    {
+        theme.red
+    } else if status.contains("work") || status.contains("run") {
+        theme.yellow
+    } else if status.contains("done") || status.contains("complete") {
+        theme.green
+    } else if status.contains("idle") {
+        theme.teal
+    } else {
+        theme.overlay0
+    }
+}
+
+fn display_title(entry: &Entry) -> &str {
+    if entry.source == Source::Workspace {
+        entry
+            .title
+            .strip_prefix("dir: ")
+            .or_else(|| entry.title.strip_prefix("project: "))
+            .unwrap_or(&entry.title)
+    } else {
+        &entry.title
+    }
+}
+
+fn entry_status(entry: &Entry) -> Option<&str> {
+    match entry.source {
+        Source::Agent => Some(
+            entry
+                .subtitle
+                .split_once(" · ")
+                .map(|(status, _)| status)
+                .filter(|status| !status.is_empty())
+                .unwrap_or("unknown"),
+        ),
+        Source::Workspace => entry.subtitle.strip_prefix("agent:").map(|rest| {
+            rest.split_once(" · ")
+                .map(|(status, _)| status)
+                .unwrap_or(rest)
+        }),
+        _ => None,
+    }
+}
+
+fn entry_metadata(entry: &Entry) -> &str {
+    match entry.source {
+        Source::Agent => entry
+            .subtitle
+            .split_once(" · ")
+            .map(|(_, metadata)| metadata)
+            .unwrap_or(""),
+        Source::Workspace => entry
+            .subtitle
+            .strip_prefix("agent:")
+            .map(|rest| {
+                rest.split_once(" · ")
+                    .map(|(_, metadata)| metadata)
+                    .unwrap_or("")
+            })
+            .unwrap_or(&entry.subtitle),
+        _ => &entry.subtitle,
+    }
+}
+
+fn display_path(entry: &Entry) -> String {
+    entry
+        .path
+        .strip_prefix(home())
+        .ok()
+        .map(|path| {
+            if path.as_os_str().is_empty() {
+                "~".into()
+            } else {
+                format!("~/{}", path.display())
+            }
+        })
+        .unwrap_or_else(|| entry.path.display().to_string())
+}
+
+fn metadata_width(width: u16) -> usize {
+    if width >= 90 {
+        28
+    } else if width >= 68 {
+        20
+    } else if width >= 52 {
+        14
+    } else {
+        0
+    }
+}
+
+fn truncate_end(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.into();
+    }
+    if max_chars == 0 {
+        return String::new();
+    }
+    value
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .chain(std::iter::once('…'))
+        .collect()
+}
+
 fn draw_list(f: &mut Frame, app: &App, area: Rect) {
     let show_scores = !app.query.trim().is_empty();
     let row_width = area.width.saturating_sub(3) as usize;
@@ -360,11 +485,9 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         let color = source_color(&app.theme, &e.source);
         let group_start =
             row == 0 || app.entries[app.filtered[row - 1]].source_name() != e.source_name();
-        let group_end = row + 1 == app.filtered.len()
-            || app.entries[app.filtered[row + 1]].source_name() != e.source_name();
         if group_start {
             items.push(ListItem::new(Line::from(Span::styled(
-                format!(" {} ", e.source_name()),
+                format!(" ▾ {} ", e.source_name()),
                 Style::default().fg(color).add_modifier(Modifier::BOLD),
             ))));
         }
@@ -372,45 +495,152 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         if row == app.selected {
             selected_row = Some(items.len());
         }
-        let branch = if group_end { "  └─ " } else { "  ├─ " };
-        let status = if e.source == Source::Agent {
-            format!("{} ", agent_status_icon(&e.subtitle))
-        } else {
-            String::new()
-        };
-        let subtitle = if e.subtitle.is_empty() {
-            String::new()
-        } else {
-            format!("  {}", e.subtitle)
-        };
+        let branch = "  ├─ ";
         let score = show_scores
             .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
             .flatten();
-        let left_len = branch.chars().count()
-            + status.chars().count()
-            + e.title.chars().count()
-            + subtitle.chars().count();
-        let spacer = score
-            .as_ref()
-            .map(|s| {
+
+        if app.config.picker.detailed_rows {
+            let status = entry_status(e);
+            let icon = status
+                .map(|status| format!("{} ", agent_status_icon_at(status, app.spinner_tick)))
+                .unwrap_or_default();
+            let status_label = status.filter(|status| *status != "unknown");
+            let current = if e.source == Source::Workspace
+                && e.search_terms.iter().any(|term| term == "focused")
+            {
+                "◆ "
+            } else {
+                ""
+            };
+            let raw_path = e.path.display().to_string();
+            let raw_metadata = entry_metadata(e);
+            let meta_width = metadata_width(area.width);
+            let show_metadata = !matches!(e.source, Source::Zoxide | Source::Root)
+                && meta_width > 0
+                && !raw_metadata.is_empty()
+                && raw_metadata != raw_path;
+            let separator_width = usize::from(show_metadata && status_label.is_some()) * 3;
+            let metadata_budget = meta_width
+                .saturating_sub(
+                    status_label
+                        .map(str::chars)
+                        .map(Iterator::count)
+                        .unwrap_or(0),
+                )
+                .saturating_sub(separator_width);
+            let metadata = if show_metadata {
+                truncate_end(raw_metadata, metadata_budget)
+            } else {
+                String::new()
+            };
+            let right_width = metadata.chars().count()
+                + separator_width
+                + status_label
+                    .map(str::chars)
+                    .map(Iterator::count)
+                    .unwrap_or(0);
+            let fixed_width =
+                branch.chars().count() + current.chars().count() + icon.chars().count();
+            let title_budget = row_width
+                .saturating_sub(fixed_width)
+                .saturating_sub(right_width)
+                .saturating_sub(usize::from(right_width > 0));
+            let title = truncate_end(display_title(e), title_budget);
+            let spacer = if right_width == 0 {
+                String::new()
+            } else {
                 " ".repeat(
                     row_width
-                        .saturating_sub(left_len + s.chars().count())
-                        .max(2),
+                        .saturating_sub(fixed_width)
+                        .saturating_sub(title.chars().count())
+                        .saturating_sub(right_width),
                 )
-            })
-            .unwrap_or_default();
-        let mut spans = vec![
-            Span::styled(branch, Style::default().fg(app.theme.overlay0)),
-            Span::styled(status, Style::default().fg(color)),
-            Span::styled(&e.title, Style::default().fg(app.theme.text)),
-            Span::styled(subtitle, Style::default().fg(app.theme.subtext0)),
-        ];
-        if let Some(score) = score {
-            spans.push(Span::raw(spacer));
-            spans.push(Span::styled(score, Style::default().fg(app.theme.overlay0)));
+            };
+            let status_color = status
+                .map(|status| agent_status_color(&app.theme, status))
+                .unwrap_or(color);
+            let mut title_spans = vec![
+                Span::styled(branch, Style::default().fg(app.theme.overlay0)),
+                Span::styled(current, Style::default().fg(app.theme.accent)),
+                Span::styled(icon, Style::default().fg(status_color)),
+                Span::styled(title, Style::default().fg(app.theme.text)),
+            ];
+            if right_width > 0 {
+                title_spans.push(Span::raw(spacer));
+                if !metadata.is_empty() {
+                    title_spans.push(Span::styled(
+                        metadata,
+                        Style::default().fg(app.theme.overlay0),
+                    ));
+                }
+                if let Some(status_label) = status_label {
+                    if !raw_metadata.is_empty() && show_metadata {
+                        title_spans
+                            .push(Span::styled(" · ", Style::default().fg(app.theme.overlay0)));
+                    }
+                    title_spans.push(Span::styled(
+                        status_label.to_string(),
+                        Style::default().fg(status_color),
+                    ));
+                }
+            }
+
+            if matches!(e.source, Source::Zoxide | Source::Root) {
+                let detail_branch = "  │  ";
+                let path_budget = row_width.saturating_sub(detail_branch.chars().count());
+                let path = truncate_end(&display_path(e), path_budget);
+                items.push(ListItem::new(vec![
+                    Line::from(title_spans),
+                    Line::from(vec![
+                        Span::styled(detail_branch, Style::default().fg(app.theme.overlay0)),
+                        Span::styled(path, Style::default().fg(app.theme.subtext0)),
+                    ]),
+                ]));
+            } else {
+                items.push(ListItem::new(Line::from(title_spans)));
+            }
+        } else {
+            let status_text = entry_status(e);
+            let status = status_text
+                .map(|status| format!("{} ", agent_status_icon_at(status, app.spinner_tick)))
+                .unwrap_or_default();
+            let subtitle = if e.subtitle.is_empty() {
+                String::new()
+            } else {
+                format!("  {}", e.subtitle)
+            };
+            let left_len = branch.chars().count()
+                + status.chars().count()
+                + e.title.chars().count()
+                + subtitle.chars().count();
+            let spacer = score
+                .as_ref()
+                .map(|score| {
+                    " ".repeat(
+                        row_width
+                            .saturating_sub(left_len + score.chars().count())
+                            .max(2),
+                    )
+                })
+                .unwrap_or_default();
+            let mut spans = vec![
+                Span::styled(branch, Style::default().fg(app.theme.overlay0)),
+                Span::styled(
+                    status,
+                    Style::default().fg(status_text
+                        .map(|status| agent_status_color(&app.theme, status))
+                        .unwrap_or(color)),
+                ),
+                Span::styled(e.title.clone(), Style::default().fg(app.theme.text)),
+                Span::styled(subtitle, Style::default().fg(app.theme.subtext0)),
+            ];
+            if let Some(score) = score {
+                spans.push(Span::raw(spacer));
+                spans.push(Span::styled(score, Style::default().fg(app.theme.overlay0)));
+            }
+            items.push(ListItem::new(Line::from(spans)));
         }
-        items.push(ListItem::new(Line::from(spans)));
     }
     let mut state = ListState::default();
     state.select(selected_row);
@@ -422,7 +652,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                 .fg(app.theme.text)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol("› ");
+        .highlight_symbol("→ ");
     f.render_stateful_widget(list, area, &mut state);
 }
 
@@ -572,6 +802,32 @@ mod tests {
     }
 
     #[test]
+    fn detailed_rows_only_expand_directory_sources() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut workspace = entry(Source::Workspace, "dir: demo");
+        workspace.path = PathBuf::from("/work/demo");
+        workspace.subtitle = "agent:blocked · w1 tabs:2 panes:3".into();
+        let mut root = entry(Source::Root, "root-demo");
+        root.path = PathBuf::from("/projects/root-demo");
+        root.subtitle = "/projects/root-demo".into();
+        app.entries = vec![workspace, root];
+        app.filtered = vec![0, 1];
+        app.filtered_scores = vec![0, 0];
+
+        let backend = TestBackend::new(90, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        let text = buffer_text(&terminal);
+        let workspace_line = text.lines().find(|line| line.contains("◉ demo")).unwrap();
+
+        assert!(!text.contains("/work/demo"));
+        assert!(!workspace_line.contains("demo  blocked"));
+        assert!(workspace_line.find("w1 tabs:2").unwrap() > 50);
+        assert!(workspace_line.rfind("blocked").unwrap() > 75);
+        assert!(text.contains("/projects/root-demo"));
+    }
+
+    #[test]
     fn list_renders_source_groups_as_a_tree() {
         let mut app = App::new(Config::default(), Theme::load(false));
         app.entries = vec![
@@ -582,16 +838,16 @@ mod tests {
         app.filtered = vec![0, 1, 2];
         app.filtered_scores = vec![0; 3];
 
-        let backend = TestBackend::new(40, 8);
+        let backend = TestBackend::new(40, 12);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
         let text = buffer_text(&terminal);
 
-        assert!(text.contains(" agent "));
-        assert!(text.contains(&format!("  ├─ {} Claude", agent_status_icon(""))));
-        assert!(text.contains(&format!("  └─ {} Codex", agent_status_icon(""))));
-        assert!(text.contains(" root "));
-        assert!(text.contains("  └─ Dotfiles"));
+        assert!(text.contains(" ▾ agent "));
+        assert!(text.contains(&format!("  ├─ {} Claude", agent_status_icon_at("", 0))));
+        assert!(text.contains(&format!("  ├─ {} Codex", agent_status_icon_at("", 0))));
+        assert!(text.contains(" ▾ root "));
+        assert!(text.contains("  ├─ Dotfiles"));
     }
 
     #[test]

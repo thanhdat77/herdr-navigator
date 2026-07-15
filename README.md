@@ -53,6 +53,8 @@ herdr server reload-config
   <img src="docs/assets/herdr-navigator-ui.png" alt="Herdr Navigator results for agents, workspaces, projects, and zoxide directories" width="100%" />
 </p>
 
+*Screenshot shown in compact mode. Herdr-style source-aware rows are the default; zoxide/root entries expand to a full-path line while other sources keep metadata aligned right.*
+
 A single result list can move between live Herdr state and things that are not open yet:
 
 - Type a repo name → focus its open workspace, or create one from a project, zoxide, or configured root.
@@ -110,6 +112,8 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Ctrl-U` | Clear query and filter |
 | `?` | Show active keybindings |
 | `Esc` / `Ctrl-C` | Back or close |
+
+Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. The focused workspace uses `◆`, selection uses `→`, and source trees use Herdr's `▾` / `├─` markers.
 
 Structured search narrows large result sets:
 
@@ -187,6 +191,7 @@ source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "s
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
+detailed_rows = true # source-aware Herdr-style result rows
 vim_mode = false
 
 [sources]
@@ -206,6 +211,7 @@ max_depth = 3
 
 Useful config surfaces:
 
+- `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
 - `[sessions]` controls local sessions and manual remote targets.

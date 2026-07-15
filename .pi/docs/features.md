@@ -11,6 +11,10 @@ Do not split into many specialized pickers unless the UX clearly needs it. The p
 - `open`: overlay pane, closes after `Enter` (the default, quick-jump flow); re-invoking focuses the existing overlay in the current workspace instead of opening a duplicate.
 - `open-side`: persistent right split (`picker-side` pane entry), mirroring herdr-file-viewer UX — launch-or-focus, toggle closed when already focused, stays open after `Enter`. The toggle decision lives in `side_pane_decision()` in `src/main.rs` and matches panes by the `Navigator Side` title.
 
+## Result rows
+
+`picker.detailed_rows = true` is the default: workspace, agent, project, session, server, quick, and plugin entries stay on one line with metadata in Herdr's responsive right column; zoxide/root entries add a second full-path line. Status, focus, expansion, and selection use Herdr's `prefix+g` glyphs (`◉`, Braille spinner, `●`, `✓`, `○`, `◆`, `▾`, `├─`, `→`). Set it to `false` for the original compact list.
+
 ## Sources
 
 Default source order:

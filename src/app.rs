@@ -35,6 +35,7 @@ pub(crate) struct App {
     pub(crate) preview: bool,
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
     pub(crate) previous_workspace_id: Option<String>,
+    pub(crate) spinner_tick: u32,
 }
 
 impl App {
@@ -53,6 +54,7 @@ impl App {
             preview,
             path_to_workspaces: HashMap::new(),
             previous_workspace_id: None,
+            spinner_tick: 0,
         }
     }
 

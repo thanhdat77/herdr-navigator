@@ -42,6 +42,8 @@ pub(crate) struct PickerConfig {
     pub(crate) agent_sort: String,
     #[serde(default = "yes")]
     pub(crate) preview: bool,
+    #[serde(default = "yes")]
+    pub(crate) detailed_rows: bool,
     #[serde(default)]
     pub(crate) vim_mode: bool,
     #[serde(default)]
@@ -216,6 +218,7 @@ impl Default for PickerConfig {
             source_priority_boost: default_source_priority_boost(),
             agent_sort: default_agent_sort(),
             preview: true,
+            detailed_rows: true,
             vim_mode: false,
             vim_filter_search: false,
             filter_keys: HashMap::new(),
@@ -367,6 +370,21 @@ mod tests {
         assert_eq!(picker.source_rank(&Source::Root), 5);
         assert_eq!(picker.source_rank(&Source::Server), 6);
         assert!(picker.source_bonus(&Source::Root) > picker.source_bonus(&Source::Server));
+    }
+
+    #[test]
+    fn detailed_rows_default_on_and_can_be_disabled() {
+        assert!(Config::default().picker.detailed_rows);
+
+        let config: Config = toml::from_str(
+            r#"
+            [picker]
+            detailed_rows = false
+            "#,
+        )
+        .unwrap();
+
+        assert!(!config.picker.detailed_rows);
     }
 
     #[test]
