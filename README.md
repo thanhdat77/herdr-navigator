@@ -113,7 +113,7 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `?` | Show active keybindings |
 | `Esc` / `Ctrl-C` | Back or close |
 
-Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. The focused workspace uses `◆`, selection uses `→`, and source trees use Herdr's `▾` / `├─` markers.
+Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. The focused workspace uses `◆`, selection uses `→`, and source trees use `▾`, `├─`, and `└─` markers.
 
 Structured search narrows large result sets:
 

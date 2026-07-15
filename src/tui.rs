@@ -414,23 +414,37 @@ fn entry_status(entry: &Entry) -> Option<&str> {
     }
 }
 
-fn entry_metadata(entry: &Entry) -> &str {
+fn entry_metadata(entry: &Entry) -> String {
     match entry.source {
-        Source::Agent => entry
-            .subtitle
-            .split_once(" · ")
-            .map(|(_, metadata)| metadata)
-            .unwrap_or(""),
-        Source::Workspace => entry
-            .subtitle
-            .strip_prefix("agent:")
-            .map(|rest| {
-                rest.split_once(" · ")
-                    .map(|(_, metadata)| metadata)
-                    .unwrap_or("")
-            })
-            .unwrap_or(&entry.subtitle),
-        _ => &entry.subtitle,
+        Source::Agent => {
+            let metadata = entry
+                .subtitle
+                .split_once(" · ")
+                .map(|(_, metadata)| metadata)
+                .unwrap_or("");
+            metadata
+                .split_once(" · ")
+                .map(|(pane, tab)| format!("{tab} · {pane}"))
+                .unwrap_or_else(|| metadata.to_string())
+        }
+        Source::Workspace => {
+            let metadata = entry
+                .subtitle
+                .strip_prefix("agent:")
+                .and_then(|rest| rest.split_once(" · ").map(|(_, metadata)| metadata))
+                .unwrap_or(&entry.subtitle);
+            let mut parts = metadata.split_whitespace();
+            match (parts.next(), parts.next(), parts.next()) {
+                (Some(_), Some(tabs), Some(panes)) => {
+                    match (tabs.strip_prefix("tabs:"), panes.strip_prefix("panes:")) {
+                        (Some(tabs), Some(panes)) => format!("{tabs} tabs · {panes} panes"),
+                        _ => metadata.to_string(),
+                    }
+                }
+                _ => metadata.to_string(),
+            }
+        }
+        _ => entry.subtitle.clone(),
     }
 }
 
@@ -485,6 +499,8 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         let color = source_color(&app.theme, &e.source);
         let group_start =
             row == 0 || app.entries[app.filtered[row - 1]].source_name() != e.source_name();
+        let group_end = row + 1 == app.filtered.len()
+            || app.entries[app.filtered[row + 1]].source_name() != e.source_name();
         if group_start {
             items.push(ListItem::new(Line::from(Span::styled(
                 format!(" ▾ {} ", e.source_name()),
@@ -495,7 +511,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         if row == app.selected {
             selected_row = Some(items.len());
         }
-        let branch = "  ├─ ";
+        let branch = if group_end { "  └─ " } else { "  ├─ " };
         let score = show_scores
             .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
             .flatten();
@@ -530,7 +546,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                 )
                 .saturating_sub(separator_width);
             let metadata = if show_metadata {
-                truncate_end(raw_metadata, metadata_budget)
+                truncate_end(&raw_metadata, metadata_budget)
             } else {
                 String::new()
             };
@@ -542,9 +558,14 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                     .unwrap_or(0);
             let fixed_width =
                 branch.chars().count() + current.chars().count() + icon.chars().count();
+            let right_column_width = if right_width > 0 {
+                meta_width.max(right_width)
+            } else {
+                0
+            };
             let title_budget = row_width
                 .saturating_sub(fixed_width)
-                .saturating_sub(right_width)
+                .saturating_sub(right_column_width)
                 .saturating_sub(usize::from(right_width > 0));
             let title = truncate_end(display_title(e), title_budget);
             let spacer = if right_width == 0 {
@@ -554,7 +575,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                     row_width
                         .saturating_sub(fixed_width)
                         .saturating_sub(title.chars().count())
-                        .saturating_sub(right_width),
+                        .saturating_sub(right_column_width),
                 )
             };
             let status_color = status
@@ -568,26 +589,26 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
             ];
             if right_width > 0 {
                 title_spans.push(Span::raw(spacer));
+                if let Some(status_label) = status_label {
+                    title_spans.push(Span::styled(
+                        status_label.to_string(),
+                        Style::default().fg(status_color),
+                    ));
+                    if !metadata.is_empty() {
+                        title_spans
+                            .push(Span::styled(" · ", Style::default().fg(app.theme.overlay0)));
+                    }
+                }
                 if !metadata.is_empty() {
                     title_spans.push(Span::styled(
                         metadata,
                         Style::default().fg(app.theme.overlay0),
                     ));
                 }
-                if let Some(status_label) = status_label {
-                    if !raw_metadata.is_empty() && show_metadata {
-                        title_spans
-                            .push(Span::styled(" · ", Style::default().fg(app.theme.overlay0)));
-                    }
-                    title_spans.push(Span::styled(
-                        status_label.to_string(),
-                        Style::default().fg(status_color),
-                    ));
-                }
             }
 
             if matches!(e.source, Source::Zoxide | Source::Root) {
-                let detail_branch = "  │  ";
+                let detail_branch = if group_end { "     " } else { "  │  " };
                 let path_budget = row_width.saturating_sub(detail_branch.chars().count());
                 let path = truncate_end(&display_path(e), path_budget);
                 items.push(ListItem::new(vec![
@@ -807,23 +828,29 @@ mod tests {
         let mut workspace = entry(Source::Workspace, "dir: demo");
         workspace.path = PathBuf::from("/work/demo");
         workspace.subtitle = "agent:blocked · w1 tabs:2 panes:3".into();
+        let mut agent = entry(Source::Agent, "claude · demo");
+        agent.subtitle = "working · w1:p2 · w1:t1".into();
         let mut root = entry(Source::Root, "root-demo");
         root.path = PathBuf::from("/projects/root-demo");
         root.subtitle = "/projects/root-demo".into();
-        app.entries = vec![workspace, root];
-        app.filtered = vec![0, 1];
-        app.filtered_scores = vec![0, 0];
+        app.entries = vec![workspace, agent, root];
+        app.filtered = vec![0, 1, 2];
+        app.filtered_scores = vec![0, 0, 0];
 
-        let backend = TestBackend::new(90, 8);
+        let backend = TestBackend::new(90, 10);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
         let text = buffer_text(&terminal);
         let workspace_line = text.lines().find(|line| line.contains("◉ demo")).unwrap();
+        let agent_line = text
+            .lines()
+            .find(|line| line.contains("⠋ claude · demo"))
+            .unwrap();
 
         assert!(!text.contains("/work/demo"));
         assert!(!workspace_line.contains("demo  blocked"));
-        assert!(workspace_line.find("w1 tabs:2").unwrap() > 50);
-        assert!(workspace_line.rfind("blocked").unwrap() > 75);
+        assert!(workspace_line.find("blocked · 2 tabs · 3 panes").unwrap() > 50);
+        assert!(agent_line.find("working · w1:t1 · w1:p2").unwrap() > 50);
         assert!(text.contains("/projects/root-demo"));
     }
 
@@ -845,9 +872,9 @@ mod tests {
 
         assert!(text.contains(" ▾ agent "));
         assert!(text.contains(&format!("  ├─ {} Claude", agent_status_icon_at("", 0))));
-        assert!(text.contains(&format!("  ├─ {} Codex", agent_status_icon_at("", 0))));
+        assert!(text.contains(&format!("  └─ {} Codex", agent_status_icon_at("", 0))));
         assert!(text.contains(" ▾ root "));
-        assert!(text.contains("  ├─ Dotfiles"));
+        assert!(text.contains("  └─ Dotfiles"));
     }
 
     #[test]
