@@ -83,10 +83,6 @@ fn newer_version(current: &str, latest: &str) -> Option<String> {
     (parse_version(latest)? > parse_version(current)?).then(|| latest.to_string())
 }
 
-fn newer_release(current: &str, tags: &str) -> Option<String> {
-    newer_version(current, &latest_release(tags)?)
-}
-
 fn fresh_cached_release(cache: &str, now: u64) -> Option<String> {
     let mut lines = cache.lines();
     let checked = lines.next()?.parse::<u64>().ok()?;
@@ -105,8 +101,10 @@ mod tests {
     fn newer_release_uses_latest_stable_semver_tag() {
         let tags = "a refs/tags/v0.3.0\nb refs/tags/v0.4.0-rc.1\nc refs/tags/v0.3.2\nd refs/tags/not-a-version\n";
 
-        assert_eq!(newer_release("0.3.0", tags), Some("0.3.2".into()));
-        assert_eq!(newer_release("0.3.2", tags), None);
+        let latest = latest_release(tags).unwrap();
+        assert_eq!(latest, "0.3.2");
+        assert_eq!(newer_version("0.3.0", &latest), Some("0.3.2".into()));
+        assert_eq!(newer_version("0.3.2", &latest), None);
     }
 
     #[test]
