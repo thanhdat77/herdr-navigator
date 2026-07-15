@@ -69,6 +69,9 @@ fn notification_audio<'a>(
     config: &'a NotificationsConfig,
     default_sound: &'static str,
 ) -> (&'static str, Option<&'a str>) {
+    if !config.audio {
+        return ("none", None);
+    }
     match config.sound.trim().to_ascii_lowercase().as_str() {
         "default" => (default_sound, None),
         "custom" => (
@@ -122,19 +125,21 @@ mod tests {
     use crate::config::NotificationsConfig;
 
     #[test]
-    fn notification_audio_resolves_default_none_and_custom() {
-        let default = NotificationsConfig::default();
-        assert_eq!(notification_audio(&default, "done"), ("done", None));
+    fn notification_audio_resolves_silent_default_herdr_and_custom() {
+        let silent = NotificationsConfig::default();
+        assert_eq!(notification_audio(&silent, "request"), ("none", None));
 
-        let none = NotificationsConfig {
+        let herdr = NotificationsConfig {
             enabled: true,
-            sound: "none".into(),
+            audio: true,
+            sound: "default".into(),
             custom_sound: None,
         };
-        assert_eq!(notification_audio(&none, "request"), ("none", None));
+        assert_eq!(notification_audio(&herdr, "done"), ("done", None));
 
         let custom = NotificationsConfig {
             enabled: true,
+            audio: true,
             sound: "custom".into(),
             custom_sound: Some("~/sounds/navigator.wav".into()),
         };

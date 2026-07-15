@@ -71,6 +71,8 @@ pub(crate) struct JumpBackConfig {
 pub(crate) struct NotificationsConfig {
     #[serde(default = "yes")]
     pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) audio: bool,
     #[serde(default = "default_notification_sound")]
     pub(crate) sound: String,
     #[serde(default)]
@@ -331,6 +333,7 @@ impl Default for NotificationsConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            audio: false,
             sound: default_notification_sound(),
             custom_sound: None,
         }
@@ -435,17 +438,21 @@ mod tests {
     }
 
     #[test]
-    fn notification_audio_supports_custom_or_none() {
-        assert_eq!(Config::default().notifications.sound, "default");
+    fn notification_audio_defaults_off_and_supports_custom() {
+        let default = Config::default().notifications;
+        assert!(!default.audio);
+        assert_eq!(default.sound, "default");
 
         let custom: Config = toml::from_str(
             r#"
             [notifications]
+            audio = true
             sound = "custom"
             custom_sound = "~/sounds/navigator.wav"
             "#,
         )
         .unwrap();
+        assert!(custom.notifications.audio);
         assert_eq!(custom.notifications.sound, "custom");
         assert_eq!(
             custom.notifications.custom_sound.as_deref(),
@@ -455,13 +462,11 @@ mod tests {
         let silent: Config = toml::from_str(
             r#"
             [notifications]
-            enabled = false
-            sound = "none"
+            audio = false
             "#,
         )
         .unwrap();
-        assert!(!silent.notifications.enabled);
-        assert_eq!(silent.notifications.sound, "none");
+        assert!(!silent.notifications.audio);
     }
 
     #[test]

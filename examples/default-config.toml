@@ -57,8 +57,10 @@ vim_filter_search = false
 [notifications]
 # Show Navigator success/error notifications.
 enabled = true
-# Audio mode: "default" uses Herdr's done/request sounds, "none" is silent,
-# and "custom" plays custom_sound with afplay (macOS) or pw-play/paplay/aplay (Linux).
+# Enable notification audio. Notifications remain visible when this is false.
+audio = false
+# Audio mode when enabled: "default" uses Herdr's done/request sounds;
+# "custom" plays custom_sound with afplay (macOS) or pw-play/paplay/aplay (Linux).
 sound = "default"
 custom_sound = "" # Example: "~/sounds/navigator.wav"
 

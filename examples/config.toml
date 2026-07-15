@@ -13,7 +13,8 @@ check_updates = true
 
 [notifications]
 enabled = true
-sound = "default" # default | none | custom
+audio = false
+sound = "default" # default | custom
 custom_sound = "" # Used only when sound = "custom"
 
 [jump_back]

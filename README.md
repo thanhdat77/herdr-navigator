@@ -209,7 +209,8 @@ vim_mode = false
 
 [notifications]
 enabled = true
-sound = "default" # default | none | custom
+audio = false # set true to enable sound
+sound = "default" # default | custom
 custom_sound = "" # Example: "~/sounds/navigator.wav"
 
 [sources]
