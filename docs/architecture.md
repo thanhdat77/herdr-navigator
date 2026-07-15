@@ -8,9 +8,9 @@ It is similar in spirit to `tv`, but deeper integrated with Herdr. Instead of on
 
 ```text
 Herdr keybinding
-  -> plugin action: herdr-picker-plus.open
+  -> plugin action: herdr-navigator.open
   -> Herdr opens overlay pane: picker
-  -> binary runs: herdr-picker-plus ui
+  -> binary runs: herdr-navigator ui
   -> collect sources
   -> fuzzy filter/rank
   -> Enter dispatches Herdr action
@@ -22,9 +22,9 @@ The plugin is intentionally a terminal TUI running inside a Herdr-managed overla
 
 | Command | Purpose |
 | --- | --- |
-| `herdr-picker-plus open` | Ask Herdr to open the picker overlay pane |
-| `herdr-picker-plus ui` | Run the interactive TUI inside that pane |
-| `herdr-picker-plus list` | Debug: print collected entries without opening TUI |
+| `herdr-navigator open` | Ask Herdr to open the picker overlay pane |
+| `herdr-navigator ui` | Run the interactive TUI inside that pane |
+| `herdr-navigator list` | Debug: print collected entries without opening TUI |
 
 ## Code layout
 

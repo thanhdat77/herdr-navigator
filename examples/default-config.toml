@@ -1,6 +1,6 @@
 # Herdr Navigator default config
 # Location after first run:
-#   $(herdr plugin config-dir herdr-picker-plus)/config.toml
+#   $(herdr plugin config-dir herdr-navigator)/config.toml
 
 [picker]
 # What happens after selecting an entry:
@@ -53,6 +53,14 @@ vim_filter_search = false
 # zoxide=ctrl-z, root=ctrl-r, session=ctrl-l.
 # [picker.filter_keys]
 # server = "ctrl-g"
+
+[notifications]
+# Show Navigator success/error notifications.
+enabled = true
+# Audio mode: "default" uses Herdr's done/request sounds, "none" is silent,
+# and "custom" plays custom_sound with afplay (macOS) or pw-play/paplay/aplay (Linux).
+sound = "default"
+custom_sound = "" # Example: "~/sounds/navigator.wav"
 
 [jump_back]
 # Master switch for Jump Back.

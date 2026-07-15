@@ -4,5 +4,5 @@
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
-command = "herdr-picker-plus.open"
+command = "herdr-navigator.open"
 description = "picker center"

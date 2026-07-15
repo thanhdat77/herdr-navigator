@@ -221,7 +221,7 @@ cargo fmt --check
 cargo clippy -- -D warnings
 cargo test
 cargo build --release
-./target/release/herdr-picker-plus list
+./target/release/herdr-navigator list
 ```
 
 ## Minimal first implementation

@@ -2,7 +2,7 @@
 
 ## Public name
 
-Use `Herdr Navigator` as the display name. Keep `herdr-picker-plus` as the stable plugin id, binary name, config directory, repository name, and action prefix for compatibility.
+Since v0.3.2, use `herdr-navigator` consistently for the plugin id, Cargo package/binary, config directory, repository, and action prefix. This intentionally replaces the pre-v0.3.2 `herdr-picker-plus` technical id while the project is still young; first run copies missing files from the legacy config directory.
 Do not introduce another technical id or personal prefix.
 
 ## Minimum release quality

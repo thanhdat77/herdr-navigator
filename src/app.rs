@@ -275,13 +275,16 @@ impl App {
                     }
                 }
                 if notify_success {
-                    notify_done(&format!("Opened {}", e.title));
+                    notify_done(&format!("Opened {}", e.title), &self.config.notifications);
                 }
                 Ok(())
             }
             Err(err) => {
                 if notify_failure {
-                    notify_error(&format!("Failed {}: {}", e.title, err.trim()));
+                    notify_error(
+                        &format!("Failed {}: {}", e.title, err.trim()),
+                        &self.config.notifications,
+                    );
                 }
                 Err(err)
             }
@@ -300,7 +303,7 @@ impl App {
             return Err(err);
         }
         run_herdr(["workspace", "close", &id])?;
-        notify_done(&format!("Closed {title}"));
+        notify_done(&format!("Closed {title}"), &self.config.notifications);
         self.refresh();
         Ok(())
     }

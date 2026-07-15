@@ -30,7 +30,7 @@ fn main() {
         Some("ui") => run_ui(env::args().nth(2).as_deref() == Some("--side")),
         Some("list") => debug_list(),
         _ => {
-            eprintln!("usage: herdr-picker-plus <open|open-side|jump-back|ui|list>");
+            eprintln!("usage: herdr-navigator <open|open-side|jump-back|ui|list>");
             process::exit(2);
         }
     }
@@ -114,7 +114,7 @@ fn open_side_picker() -> ! {
 }
 
 fn open_plugin_pane(entrypoint: &str, extra: &[&str]) -> ! {
-    let plugin = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| "herdr-picker-plus".into());
+    let plugin = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| "herdr-navigator".into());
     let status = Command::new(herdr_bin())
         .args([
             "plugin",
@@ -147,11 +147,11 @@ fn jump_back() -> ! {
     let config = Config::load();
     match app::jump_back(&config) {
         Ok(label) => {
-            herdr::notify_done(&format!("Jumped back to {label}"));
+            herdr::notify_done(&format!("Jumped back to {label}"), &config.notifications);
             process::exit(0);
         }
         Err(error) => {
-            herdr::notify_error(&format!("Jump back failed: {error}"));
+            herdr::notify_error(&format!("Jump back failed: {error}"), &config.notifications);
             eprintln!("jump back failed: {error}");
             process::exit(1);
         }
@@ -167,7 +167,7 @@ fn run_ui(persist: bool) -> ! {
     let update_check = check_updates.then(update::check_in_background);
 
     if let Err(e) = tui_loop(&mut app, persist, update_check) {
-        eprintln!("picker plus error: {e}");
+        eprintln!("Navigator error: {e}");
         process::exit(1);
     }
     process::exit(0);

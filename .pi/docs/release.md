@@ -18,8 +18,8 @@ cargo build --release
 6. Push branch and tag.
 
 Release workflow builds archives:
-- `herdr-picker-plus-linux-x86_64.tar.gz`
-- `herdr-picker-plus-macos-aarch64.tar.gz`
+- `herdr-navigator-linux-x86_64.tar.gz`
+- `herdr-navigator-macos-aarch64.tar.gz`
 
 ## Avoid
 
@@ -31,6 +31,6 @@ Release workflow builds archives:
 
 ```bash
 git status --short
-gh run list --repo <owner>/herdr-picker-plus --limit 5
-gh release view vX.Y.Z --repo <owner>/herdr-picker-plus
+gh run list --repo thanhdat77/herdr-navigator --limit 5
+gh release view vX.Y.Z --repo thanhdat77/herdr-navigator
 ```

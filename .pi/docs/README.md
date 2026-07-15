@@ -22,9 +22,9 @@ Core UX: if something is already open, focus it; otherwise create/open the small
 
 ## Current public identity
 
-- Cargo package / binary: `herdr-picker-plus`
-- Herdr plugin id: `herdr-picker-plus`
-- Main action: `herdr-picker-plus.open`
+- Cargo package / binary: `herdr-navigator`
+- Herdr plugin id: `herdr-navigator`
+- Main action: `herdr-navigator.open`
 - Overlay pane id: `picker`
 - Plugin manifest: `herdr-plugin.toml`
 - Main code: `src/main.rs`
@@ -39,7 +39,7 @@ cargo fmt --check
 cargo clippy -- -D warnings
 cargo test
 cargo build --release
-./target/release/herdr-picker-plus list
+./target/release/herdr-navigator list
 ```
 
 ## Docs map

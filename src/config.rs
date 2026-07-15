@@ -2,7 +2,10 @@ use std::{collections::HashMap, fs};
 
 use serde::Deserialize;
 
-use crate::{model::Source, paths::plugin_config_dir};
+use crate::{
+    model::Source,
+    paths::{migrate_legacy_plugin_config, plugin_config_dir},
+};
 
 const DEFAULT_CONFIG: &str = include_str!("../examples/default-config.toml");
 
@@ -12,6 +15,8 @@ pub(crate) struct Config {
     pub(crate) picker: PickerConfig,
     #[serde(default)]
     pub(crate) jump_back: JumpBackConfig,
+    #[serde(default)]
+    pub(crate) notifications: NotificationsConfig,
     #[serde(default)]
     pub(crate) sources: SourcesConfig,
     #[serde(default)]
@@ -60,6 +65,16 @@ pub(crate) struct JumpBackConfig {
     pub(crate) enabled: bool,
     #[serde(default = "yes")]
     pub(crate) pin_previous: bool,
+}
+
+#[derive(Clone, Deserialize)]
+pub(crate) struct NotificationsConfig {
+    #[serde(default = "yes")]
+    pub(crate) enabled: bool,
+    #[serde(default = "default_notification_sound")]
+    pub(crate) sound: String,
+    #[serde(default)]
+    pub(crate) custom_sound: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -176,6 +191,9 @@ fn default_source_priority_boost() -> i64 {
 }
 fn default_agent_sort() -> String {
     "herdr".into()
+}
+fn default_notification_sound() -> String {
+    "default".into()
 }
 fn default_filter_key(source: &Source) -> Option<char> {
     match source {
@@ -309,6 +327,15 @@ impl Default for SessionsConfig {
         }
     }
 }
+impl Default for NotificationsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            sound: default_notification_sound(),
+            custom_sound: None,
+        }
+    }
+}
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
@@ -321,6 +348,7 @@ impl Default for Config {
         Self {
             picker: PickerConfig::default(),
             jump_back: JumpBackConfig::default(),
+            notifications: NotificationsConfig::default(),
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
             sessions: SessionsConfig::default(),
@@ -346,6 +374,7 @@ impl Default for Config {
 
 impl Config {
     pub(crate) fn load() -> Self {
+        migrate_legacy_plugin_config();
         let dir = plugin_config_dir();
         let _ = fs::create_dir_all(&dir);
         let path = dir.join("config.toml");
@@ -403,6 +432,36 @@ mod tests {
         .unwrap();
 
         assert!(!config.picker.check_updates);
+    }
+
+    #[test]
+    fn notification_audio_supports_custom_or_none() {
+        assert_eq!(Config::default().notifications.sound, "default");
+
+        let custom: Config = toml::from_str(
+            r#"
+            [notifications]
+            sound = "custom"
+            custom_sound = "~/sounds/navigator.wav"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(custom.notifications.sound, "custom");
+        assert_eq!(
+            custom.notifications.custom_sound.as_deref(),
+            Some("~/sounds/navigator.wav")
+        );
+
+        let silent: Config = toml::from_str(
+            r#"
+            [notifications]
+            enabled = false
+            sound = "none"
+            "#,
+        )
+        .unwrap();
+        assert!(!silent.notifications.enabled);
+        assert_eq!(silent.notifications.sound, "none");
     }
 
     #[test]

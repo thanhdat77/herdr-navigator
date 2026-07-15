@@ -11,8 +11,13 @@ preview = true
 detailed_rows = true
 check_updates = true
 
+[notifications]
+enabled = true
+sound = "default" # default | none | custom
+custom_sound = "" # Used only when sound = "custom"
+
 [jump_back]
-# Record workspace transitions and enable herdr-picker-plus.jump-back.
+# Record workspace transitions and enable herdr-navigator.jump-back.
 enabled = true
 # Pin the previous workspace first only in the initial unfiltered picker view.
 pin_previous = true

@@ -4,7 +4,7 @@ Herdr Navigator stays a small Herdr-native navigation center. New features shoul
 
 ## Now
 
-- [x] **Jump Back** — configurable transition history and `herdr-picker-plus.jump-back` action. The previous workspace can be pinned first in the initial unfiltered picker view; closed workspaces invalidate the saved target cleanly.
+- [x] **Jump Back** — configurable transition history and `herdr-navigator.jump-back` action. The previous workspace can be pinned first in the initial unfiltered picker view; closed workspaces invalidate the saved target cleanly.
 
 ## Next
 

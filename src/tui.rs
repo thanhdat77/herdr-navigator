@@ -78,7 +78,10 @@ pub(crate) fn tui_loop(
                 }
                 Action::CloseWorkspace => {
                     if let Err(e) = app.close_selected_workspace() {
-                        crate::herdr::notify_error(&format!("Close failed: {e}"));
+                        crate::herdr::notify_error(
+                            &format!("Close failed: {e}"),
+                            &app.config.notifications,
+                        );
                     }
                 }
             },
@@ -857,13 +860,13 @@ mod tests {
     #[test]
     fn update_badge_renders_in_the_header() {
         let mut app = App::new(Config::default(), Theme::load(false));
-        app.update_available = Some("0.4.0".into());
+        app.update_available = Some("0.3.2".into());
 
         let backend = TestBackend::new(70, 8);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw(f, &app)).unwrap();
 
-        assert!(buffer_text(&terminal).contains("↑ v0.4.0 available"));
+        assert!(buffer_text(&terminal).contains("↑ v0.3.2 available"));
     }
 
     #[test]

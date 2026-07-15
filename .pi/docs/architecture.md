@@ -10,8 +10,8 @@ Single-file Rust TUI plugin:
 
 ```text
 herdr-plugin.toml
-  action open -> target/release/herdr-picker-plus open
-  pane picker -> target/release/herdr-picker-plus ui
+  action open -> target/release/herdr-navigator open
+  pane picker -> target/release/herdr-navigator ui
 
 src/main.rs
   Config -> Theme -> App -> collect sources -> filter/rank -> open selected

@@ -6,10 +6,10 @@ Herdr Navigator is intended to be a picker center. Other Herdr plugins should in
 
 | Surface | Value |
 | --- | --- |
-| Plugin id | `herdr-picker-plus` |
-| Open action | `herdr-picker-plus.open` |
-| Binary | `herdr-picker-plus` |
-| Debug list | `herdr-picker-plus list` |
+| Plugin id | `herdr-navigator` |
+| Open action | `herdr-navigator.open` |
+| Binary | `herdr-navigator` |
+| Debug list | `herdr-navigator list` |
 
 ## From Herdr config
 
@@ -19,7 +19,7 @@ Bind the picker to any key:
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
-command = "herdr-picker-plus.open"
+command = "herdr-navigator.open"
 description = "picker center"
 ```
 
@@ -28,7 +28,7 @@ description = "picker center"
 Another plugin can open Navigator by invoking its action through Herdr:
 
 ```bash
-herdr plugin action invoke herdr-picker-plus.open
+herdr plugin action invoke herdr-navigator.open
 ```
 
 Use this when your plugin wants to hand control back to the central picker instead of building its own picker UI.

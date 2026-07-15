@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Notification audio modes: Herdr defaults, silent notifications, or an asynchronous custom audio file.
+- A new full-width Navigator demo replaces the cropped preview.
+
+### Changed
+- **Breaking:** the plugin id, Cargo package/binary, action prefix, config directory, and release archives are now consistently named `herdr-navigator`. On first run, missing files are copied from the legacy `herdr-picker-plus` config directory without deleting the originals.
+
+### Fixed
+- Navigator notifications can now be disabled completely with `[notifications] enabled = false` ([#1](https://github.com/thanhdat77/herdr-navigator/issues/1)).
+
 ## [0.3.1] - 2026-07-15
 
 ### Added

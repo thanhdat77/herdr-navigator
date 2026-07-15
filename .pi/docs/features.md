@@ -15,6 +15,10 @@ Do not split into many specialized pickers unless the UX clearly needs it. The p
 
 `picker.detailed_rows = true` is the default: workspace, agent, project, session, server, quick, and plugin entries stay on one line with metadata in Herdr's responsive right column; zoxide/root entries add a second full-path line. Status, focus, expansion, and selection use Herdr's `prefix+g` glyphs (`◉`, Braille spinner, `●`, `✓`, `○`, `◆`, `▾`, `├─`, `└─`, `→`). Set it to `false` for the original compact list.
 
+## Notifications
+
+`[notifications] enabled = false` disables Navigator success/error notifications. When enabled, `sound = "default"` uses Herdr's `done`/`request` sounds, `sound = "none"` keeps notifications silent, and `sound = "custom"` plays `custom_sound` asynchronously with the first available native player (`afplay` on macOS; `pw-play`, `paplay`, or `aplay` on Linux). Custom paths are passed directly as command arguments, never through a shell.
+
 ## Update notice
 
 `picker.check_updates = true` starts a non-blocking `git ls-remote` check when the UI opens. The latest stable semver tag is cached in `update-check` under the plugin config directory for 24 hours. A newer release renders as `↑ vX.Y.Z available` on the right side of the Navigator header. Network and parsing failures stay silent.

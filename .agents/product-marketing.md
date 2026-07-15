@@ -5,7 +5,7 @@
 ## Product Overview
 
 **Display name:** Herdr Navigator
-**Technical plugin ID:** `herdr-picker-plus` (kept stable for installs, actions, config paths, and compatibility)
+**Technical plugin ID:** `herdr-navigator` (aligned with the display name, binary, actions, config path, and repository since v0.3.2)
 **One-liner:** One fuzzy navigator for every place and action in Herdr.
 **What it does:** Herdr Navigator searches workspaces, agents, projects, sessions, remotes, directories, Quick Actions, and external command integrations from one Herdr-managed picker. Selecting a result performs the correct Herdr action: focus, create, attach, hand off, invoke, or run.
 **Product category:** Herdr plugin; terminal fuzzy navigator; workflow switcher.
@@ -50,7 +50,7 @@
 |-----------|----------|
 | Herdr already has navigation | Navigator adds one cross-source surface and action-aware dispatch across workspaces, agents, projects, sessions, remotes, paths, and integrations. |
 | I do not use every integration | Every source can be disabled; Herdr Plus and zoxide degrade quietly when absent. |
-| “Navigator” sounds like a new plugin ID | Only the display name changes. The stable technical ID remains `herdr-picker-plus`. |
+| The v0.3.2 technical rename disrupts existing installs | Keep the one-time migration explicit; old config and Jump Back state copy automatically on first run. |
 | Will it create duplicate workspaces? | It focuses matching open workspaces first and distinguishes project workspaces from plain directory workspaces sharing the same cwd. |
 
 ## Customer Language

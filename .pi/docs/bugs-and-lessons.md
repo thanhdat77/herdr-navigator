@@ -7,14 +7,16 @@ Symptom: user selected project; existing workspace could focus, but new project 
 Root cause found: Herdr was still linked/bound to the old plugin id/action:
 
 ```text
-old: fenix.workdir-picker.open
-new: herdr-picker-plus.open
+old:       fenix.workdir-picker.open
+pre-v0.3.2: herdr-picker-plus.open
+current:   herdr-navigator.open
 ```
 
 Fix:
 
 ```bash
 herdr plugin unlink fenix.workdir-picker 2>/dev/null || true
+herdr plugin unlink herdr-picker-plus 2>/dev/null || true
 herdr plugin link "$PWD"
 herdr server reload-config
 ```
@@ -22,15 +24,15 @@ herdr server reload-config
 Also update Herdr config keybinding to:
 
 ```toml
-command = "herdr-picker-plus.open"
+command = "herdr-navigator.open"
 ```
 
 Lesson: after renaming plugin id/binary, always check:
 
 ```bash
 herdr plugin list
-herdr plugin action list --plugin herdr-picker-plus
-rg "fenix.workdir-picker|herdr-workdir-picker" ~/.config/herdr/config.toml .
+herdr plugin action list --plugin herdr-navigator
+rg "fenix.workdir-picker|herdr-picker-plus|herdr-workdir-picker" ~/.config/herdr/config.toml .
 ```
 
 ## Theme inheritance misunderstanding
@@ -64,7 +66,7 @@ Herdr active config is stow-managed from dotfiles. Plugin behavior can appear wr
 Always check both:
 
 ```bash
-rg "herdr-picker-plus|fenix.workdir-picker" ~/.config/herdr/config.toml /home/fenix/dotfiles/herdr/.config/herdr/config.toml
+rg "herdr-navigator|herdr-picker-plus|fenix.workdir-picker" ~/.config/herdr/config.toml /home/fenix/dotfiles/herdr/.config/herdr/config.toml
 ```
 
 ## Project open path assumptions

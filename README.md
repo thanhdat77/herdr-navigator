@@ -21,14 +21,14 @@ Type what you remember. Navigator decides whether to **focus, create, attach, ha
 prefix+t  →  type  →  Enter
 ```
 
-> [!NOTE]
-> **Herdr Navigator** is the display name. The stable plugin ID, binary, config directory, and action prefix remain `herdr-picker-plus` for compatibility.
+> [!IMPORTANT]
+> **Upgrading from v0.3.1 or earlier?** Sorry for the one-time breaking rename. Starting with v0.3.2, the plugin ID, binary, config directory, and action prefix are all `herdr-navigator`. See the migration steps below.
 
 ## Install
 
 ```bash
-herdr plugin install thanhdat77/herdr-navigator --yes
-herdr plugin action invoke herdr-picker-plus.open
+herdr plugin install thanhdat77/herdr-navigator --ref v0.3.2 --yes
+herdr plugin action invoke herdr-navigator.open
 ```
 
 If the overlay opens, add a shortcut to `~/.config/herdr/config.toml`. Invoking `open` again focuses the existing Navigator in the current workspace instead of opening a duplicate:
@@ -37,9 +37,21 @@ If the overlay opens, add a shortcut to `~/.config/herdr/config.toml`. Invoking 
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
-command = "herdr-picker-plus.open"
+command = "herdr-navigator.open"
 description = "jump to anything"
 ```
+
+### Upgrade from v0.3.1 or earlier
+
+Sorry for the migration. This completes the rename while the project is still young:
+
+```bash
+herdr plugin uninstall herdr-picker-plus
+herdr plugin install thanhdat77/herdr-navigator --ref v0.3.2 --yes
+herdr server reload-config
+```
+
+Replace `herdr-picker-plus` with `herdr-navigator` in your Herdr keybindings. Navigator copies your old plugin config and Jump Back state into the new config directory on first run; the old files are left untouched. Local development links should use `herdr plugin unlink herdr-picker-plus` instead of `uninstall`.
 
 Reload Herdr, then press `prefix+t`:
 
@@ -53,7 +65,7 @@ herdr server reload-config
   <img src="docs/assets/herdr-navigator-demo.gif" alt="Herdr Navigator switching, filtering, and opening workspaces, agents, sessions, and directories" width="100%" />
 </p>
 
-*Source-aware rows keep live status, tabs, and panes aligned at a glance. [Watch the full 17-second demo.](https://github.com/thanhdat77/herdr-navigator/releases/download/v0.3.0/herdr-navigator-v0.3.0-demo.mp4)*
+*Source-aware rows keep live status, tabs, and panes aligned at a glance. [Watch the full 17-second demo.](https://github.com/thanhdat77/herdr-navigator/releases/download/v0.3.2/herdr-navigator-v0.3.2-demo.mp4)*
 
 A single result list can move between live Herdr state and things that are not open yet:
 
@@ -136,7 +148,7 @@ Navigator remembers the workspace left by a successful local navigation. Bind th
 [[keys.command]]
 key = "prefix+l"
 type = "plugin_action"
-command = "herdr-picker-plus.jump-back"
+command = "herdr-navigator.jump-back"
 description = "jump to previous workspace"
 ```
 
@@ -157,7 +169,7 @@ If the previous workspace was closed, the next Jump Back clears the stale state 
 Keep Navigator beside your work:
 
 ```bash
-herdr plugin action invoke herdr-picker-plus.open-side
+herdr plugin action invoke herdr-navigator.open-side
 ```
 
 The action opens the side pane, focuses it when it already exists, and closes it when invoked while focused. Unlike the overlay, the side pane stays open after `Enter`.
@@ -168,7 +180,7 @@ Optional binding:
 [[keys.command]]
 key = "prefix+shift+t"
 type = "plugin_action"
-command = "herdr-picker-plus.open-side"
+command = "herdr-navigator.open-side"
 description = "navigator side pane"
 ```
 
@@ -177,7 +189,7 @@ description = "navigator side pane"
 Navigator writes a fully commented config on first run:
 
 ```bash
-herdr plugin config-dir herdr-picker-plus
+herdr plugin config-dir herdr-navigator
 ```
 
 See [`examples/default-config.toml`](examples/default-config.toml) for every option and its behavior. Common customizations:
@@ -194,6 +206,11 @@ preview = true
 detailed_rows = true # source-aware Herdr-style result rows
 check_updates = true # daily background release check
 vim_mode = false
+
+[notifications]
+enabled = true
+sound = "default" # default | none | custom
+custom_sound = "" # Example: "~/sounds/navigator.wav"
 
 [sources]
 open_workspaces = true
@@ -214,6 +231,7 @@ Useful config surfaces:
 
 - `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
 - `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available` in the header; failures stay silent.
+- `[notifications]` can disable notifications entirely or use Herdr's default sounds, no sound, or a custom audio file.
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
 - `[sessions]` controls local sessions and manual remote targets.
@@ -266,19 +284,19 @@ Check that Herdr sees the plugin and its actions:
 
 ```bash
 herdr plugin list
-herdr plugin action list --plugin herdr-picker-plus
+herdr plugin action list --plugin herdr-navigator
 ```
 
 Inspect every collected candidate without opening the TUI:
 
 ```bash
-./target/release/herdr-picker-plus list
+./target/release/herdr-navigator list
 ```
 
-If a keybinding does nothing, verify the stable action ID and reload config:
+If a keybinding does nothing, verify the action ID and reload config:
 
 ```bash
-rg "herdr-picker-plus.open" ~/.config/herdr/config.toml
+rg "herdr-navigator.open" ~/.config/herdr/config.toml
 herdr server reload-config
 ```
 
