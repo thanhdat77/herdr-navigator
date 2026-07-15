@@ -161,4 +161,39 @@ pub(crate) struct Project {
 pub(crate) struct ProjectTab {
     pub(crate) name: String,
     pub(crate) command: Option<String>,
+    #[serde(default)]
+    pub(crate) panes: Vec<ProjectPane>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct ProjectPane {
+    pub(crate) command: Option<String>,
+    pub(crate) split: Option<String>,
+    pub(crate) label: Option<String>,
+}
+
+impl ProjectTab {
+    pub(crate) fn effective_panes(&self) -> Vec<ProjectPane> {
+        if self.panes.is_empty() {
+            return vec![ProjectPane {
+                command: self.command.clone(),
+                split: None,
+                label: None,
+            }];
+        }
+
+        self.panes
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, mut pane)| {
+                pane.split = match (index, pane.split.as_deref()) {
+                    (0, _) => None,
+                    (_, Some(split)) if !split.is_empty() => Some(split.into()),
+                    _ => Some("down".into()),
+                };
+                pane
+            })
+            .collect()
+    }
 }

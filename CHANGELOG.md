@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- Preserve Herdr Plus `[[tabs.panes]]` splits, labels, and startup commands when opening projects from Navigator.
+
 ## [0.3.2] - 2026-07-15
 
 ### Added

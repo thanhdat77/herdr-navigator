@@ -93,7 +93,7 @@ Herdr's built-in navigation remains the simpler choice for a single entity type.
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | Focus the exact workspace |
 | `agent` | `herdr agent list` | Focus the agent pane |
-| `project` | Herdr Plus project TOML | Reuse or create a project workspace and apply tabs |
+| `project` | Herdr Plus project TOML | Reuse or create a project workspace and apply tabs and split panes |
 | `session` | Herdr sessions + configured local entries | Attach the local session |
 | `server` | Configured remote targets | Hand off to the remote Herdr server |
 | `zoxide` | `zoxide query -l` | Reuse or create a directory workspace |
