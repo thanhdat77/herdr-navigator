@@ -4,13 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-15
+
 ### Added
-- Herdr-style source-aware result rows align metadata right and expand only zoxide/root entries to a second full-path line; native `prefix+g` glyphs mark selection, focus, blocked, working, idle, done, and unknown states. `picker.detailed_rows = false` restores the compact list.
+- Herdr-style source-aware result rows keep status/tab/pane metadata in a right column and expand only zoxide/root entries to a second full-path line; native `prefix+g` glyphs mark selection, focus, blocked, working, idle, done, and unknown states. `picker.detailed_rows = false` restores the compact list.
 - Re-invoking the overlay `open` action focuses the existing Navigator in the current workspace instead of opening a duplicate pane.
 - Herdr Navigator banner, social preview, and a shorter outcome-led README.
 - Configurable Jump Back action (`herdr-picker-plus.jump-back`) toggles to the workspace left by the last successful local picker navigation and can pin that workspace first in the initial picker view.
 - Persistent side pane mode: the `open-side` action opens the picker in a right split (like herdr-file-viewer). Launch-or-focus, toggles closed when already focused, and the picker stays open after `Enter`.
-- Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
 - `Ctrl-X` closes the selected/open matching workspace without closing the picker; the picker refuses to close its owning workspace.
 - Built-in server/remote source from remote `[sessions.entries]`, using `herdr --remote TARGET --handoff`, plus local session entries from `herdr session list --json`.
 

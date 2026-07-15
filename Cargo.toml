@@ -1,6 +1,6 @@
 [package]
 name = "herdr-picker-plus"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Jump to anything in Herdr from one fuzzy navigator"
 license = "MIT"
