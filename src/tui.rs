@@ -182,6 +182,15 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
             Action::Continue
         }
         Command::CloseWorkspace => Action::CloseWorkspace,
+        Command::TogglePin => {
+            if let Err(error) = app.toggle_selected_pin() {
+                crate::herdr::notify_error(
+                    &format!("Pin failed: {error}"),
+                    &app.config.notifications,
+                );
+            }
+            Action::Continue
+        }
         Command::TogglePreview => {
             app.preview = !app.preview;
             Action::Continue
@@ -527,7 +536,7 @@ fn truncate_end(value: &str, max_chars: usize) -> String {
 fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Color) {
     let is_workspace = entry.source == Source::Workspace;
     let is_current = is_workspace && entry.search_terms.iter().any(|term| term == "focused");
-    let is_pinned = is_workspace
+    let is_previous = is_workspace
         && app.config.jump_back.pin_previous
         && app.query.trim().is_empty()
         && app.source_filter.is_none()
@@ -535,7 +544,9 @@ fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Col
         && entry.workspace_id == app.previous_workspace_id;
     if is_current {
         ("  ◆  ", app.theme.accent)
-    } else if is_pinned {
+    } else if app.is_pinned(entry) {
+        ("  ★  ", app.theme.yellow)
+    } else if is_previous {
         ("  ◆  ", app.theme.red)
     } else if group_end {
         ("  └─ ", app.theme.overlay0)
@@ -1062,6 +1073,20 @@ mod tests {
             .unwrap();
 
         assert!(preview.is_active(&app));
+    }
+
+    #[test]
+    fn registry_maps_ctrl_b_to_pin() {
+        let app = App::new(Config::default(), Theme::load(false));
+        let pin = keybindings(&app)
+            .into_iter()
+            .find(|binding| binding.command == Command::TogglePin)
+            .unwrap();
+
+        assert!(pin.matches(
+            &app,
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::CONTROL)
+        ));
     }
 
     #[test]

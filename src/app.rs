@@ -35,6 +35,7 @@ pub(crate) struct App {
     pub(crate) preview: bool,
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
     pub(crate) previous_workspace_id: Option<String>,
+    pub(crate) pinned_entries: HashSet<String>,
     pub(crate) spinner_tick: u32,
     pub(crate) update_available: Option<String>,
 }
@@ -55,6 +56,7 @@ impl App {
             preview,
             path_to_workspaces: HashMap::new(),
             previous_workspace_id: None,
+            pinned_entries: HashSet::new(),
             spinner_tick: 0,
             update_available: None,
         }
@@ -108,6 +110,9 @@ impl App {
         );
 
         self.entries = entries;
+        self.pinned_entries =
+            read_pinned_entries(&plugin_config_dir().join(PINNED_ENTRIES_STATE_FILE))
+                .unwrap_or_default();
         self.previous_workspace_id =
             if self.config.jump_back.enabled && self.config.jump_back.pin_previous {
                 read_previous_workspace().ok()
@@ -150,16 +155,19 @@ impl App {
             }
         }
         scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
-            let pinned_a = pin_previous
+            let user_pinned_a = self.is_pinned(&self.entries[*idx_a]);
+            let user_pinned_b = self.is_pinned(&self.entries[*idx_b]);
+            let previous_pinned_a = pin_previous
                 && self.entries[*idx_a].source == Source::Workspace
                 && self.entries[*idx_a].workspace_id.as_deref()
                     == self.previous_workspace_id.as_deref();
-            let pinned_b = pin_previous
+            let previous_pinned_b = pin_previous
                 && self.entries[*idx_b].source == Source::Workspace
                 && self.entries[*idx_b].workspace_id.as_deref()
                     == self.previous_workspace_id.as_deref();
-            pinned_b
-                .cmp(&pinned_a)
+            user_pinned_b
+                .cmp(&user_pinned_a)
+                .then_with(|| previous_pinned_b.cmp(&previous_pinned_a))
                 .then_with(|| score_b.cmp(score_a))
                 .then_with(|| {
                     self.config
@@ -215,6 +223,28 @@ impl App {
         self.filtered
             .get(self.selected)
             .and_then(|idx| self.entries.get(*idx))
+    }
+
+    pub(crate) fn is_pinned(&self, entry: &Entry) -> bool {
+        self.pinned_entries.contains(&pin_key(entry))
+    }
+
+    pub(crate) fn toggle_selected_pin(&mut self) -> Result<(), String> {
+        let key = self
+            .selected_entry()
+            .map(pin_key)
+            .ok_or("nothing selected")?;
+        let mut pinned = self.pinned_entries.clone();
+        if !pinned.remove(&key) {
+            pinned.insert(key);
+        }
+        save_pinned_entries(
+            &plugin_config_dir().join(PINNED_ENTRIES_STATE_FILE),
+            &pinned,
+        )?;
+        self.pinned_entries = pinned;
+        self.apply_filter();
+        Ok(())
     }
 
     pub(crate) fn open_selected(&self) -> Result<(), String> {
@@ -530,6 +560,7 @@ fn workspace_text(entry: &Entry) -> String {
 }
 
 const JUMP_BACK_STATE_FILE: &str = "jump-back-workspace";
+const PINNED_ENTRIES_STATE_FILE: &str = "pinned-entries.json";
 
 pub(crate) fn jump_back(config: &Config) -> Result<String, String> {
     if !config.jump_back.enabled {
@@ -612,6 +643,25 @@ fn save_previous_workspace(id: &str) -> Result<(), String> {
         .map_err(|e| format!("failed to save jump-back state: {e}"))
 }
 
+fn read_pinned_entries(path: &Path) -> Result<HashSet<String>, String> {
+    let value =
+        fs::read_to_string(path).map_err(|e| format!("failed to read pinned entries: {e}"))?;
+    serde_json::from_str::<Vec<String>>(&value)
+        .map(|entries| entries.into_iter().collect())
+        .map_err(|e| format!("failed to parse pinned entries: {e}"))
+}
+
+fn save_pinned_entries(path: &Path, entries: &HashSet<String>) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("failed to create plugin config: {e}"))?;
+    }
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_unstable();
+    let value = serde_json::to_string_pretty(&entries)
+        .map_err(|e| format!("failed to encode pinned entries: {e}"))?;
+    fs::write(path, value).map_err(|e| format!("failed to save pinned entries: {e}"))
+}
+
 fn launch_workspace_id() -> Option<String> {
     env::var("HERDR_PLUGIN_CONTEXT_JSON")
         .ok()
@@ -651,6 +701,25 @@ fn herdr_agent_panel_sort() -> String {
         .unwrap_or_else(|| "spaces".into())
 }
 
+fn pin_key(entry: &Entry) -> String {
+    match &entry.action {
+        EntryAction::FocusWorkspace { id } => format!("workspace:{id}"),
+        EntryAction::FocusAgent { target } => format!("agent:{target}"),
+        EntryAction::OpenProject => format!("project:{}", entry.key()),
+        EntryAction::OpenRemote { target } => format!("remote:{target}"),
+        EntryAction::AttachSession { name, remote } => {
+            format!("session:{}:{name}", remote.as_deref().unwrap_or("local"))
+        }
+        EntryAction::InvokePluginAction { action } => {
+            format!("plugin:{}:{action}", entry.source_name())
+        }
+        EntryAction::FocusOrCreateDir => format!("{}:{}", entry.source_name(), entry.key()),
+        EntryAction::RunCommand { command, .. } => {
+            format!("{}:{command}", entry.source_name())
+        }
+    }
+}
+
 fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: Vec<Entry>) {
     for e in incoming {
         let key = match &e.action {
@@ -670,7 +739,10 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     use super::*;
     use crate::{config::Config, model::Project, theme::Theme};
@@ -807,6 +879,29 @@ mod tests {
             app.selected_entry().unwrap().workspace_id.as_deref(),
             Some("w1")
         );
+    }
+
+    #[test]
+    fn pinned_entries_sort_first_and_persist() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![
+            entry(Source::Root, "/alpha", "alpha"),
+            entry(Source::Root, "/zulu", "zulu"),
+        ];
+        app.pinned_entries.insert(pin_key(&app.entries[1]));
+
+        app.apply_filter();
+
+        assert_eq!(app.selected_entry().unwrap().title, "zulu");
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = env::temp_dir().join(format!("herdr-pins-{suffix}.json"));
+        save_pinned_entries(&path, &app.pinned_entries).unwrap();
+        assert_eq!(read_pinned_entries(&path).unwrap(), app.pinned_entries);
+        let _ = fs::remove_file(path);
     }
 
     #[test]

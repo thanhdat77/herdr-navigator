@@ -16,6 +16,7 @@ pub(crate) enum Command {
     DeleteChar,
     Clear,
     CloseWorkspace,
+    TogglePin,
     TogglePreview,
     ToggleHelp,
     Filter(Source),
@@ -94,6 +95,9 @@ impl Keybind {
         match &self.command {
             Command::StartSearch => app.input_mode == InputMode::Search,
             Command::CycleFilter => app.source_filter.is_some(),
+            Command::TogglePin => app
+                .selected_entry()
+                .is_some_and(|entry| app.is_pinned(entry)),
             Command::TogglePreview => app.preview,
             Command::ToggleHelp => app.input_mode == InputMode::Help,
             Command::Filter(source) => app.source_filter.as_ref() == Some(source),
@@ -248,6 +252,13 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
             "close workspace",
             "Actions",
             None,
+        ),
+        binding(
+            Command::TogglePin,
+            vec![key(KeyCode::Char('b'), KeyModifiers::CONTROL, "⌃B")],
+            "pin / unpin selected",
+            "Actions",
+            Some("pin"),
         ),
         binding(
             Command::TogglePreview,
