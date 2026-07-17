@@ -5,9 +5,15 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    event::{
+        self, Event, KeyCode, KeyEvent, KeyEventKind, KeyboardEnhancementFlags,
+        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+    },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, supports_keyboard_enhancement, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -34,6 +40,13 @@ pub(crate) fn tui_loop(
 ) -> io::Result<()> {
     enable_raw_mode()?;
     let mut out = io::stdout();
+    let enhanced_keyboard = matches!(supports_keyboard_enhancement(), Ok(true));
+    if enhanced_keyboard {
+        execute!(
+            out,
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        )?;
+    }
     execute!(out, EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(out))?;
     let result = loop {
@@ -62,7 +75,7 @@ pub(crate) fn tui_loop(
                 Action::Open => {
                     // leave the TUI while the action runs: herdr CLI output goes to
                     // the normal screen instead of corrupting the alternate screen
-                    cleanup_terminal(&mut terminal)?;
+                    cleanup_terminal(&mut terminal, enhanced_keyboard)?;
                     let outcome = app.open_selected();
                     if let Err(e) = outcome {
                         eprintln!("{e}");
@@ -73,6 +86,14 @@ pub(crate) fn tui_loop(
                     }
                     app.refresh();
                     enable_raw_mode()?;
+                    if enhanced_keyboard {
+                        execute!(
+                            terminal.backend_mut(),
+                            PushKeyboardEnhancementFlags(
+                                KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                            )
+                        )?;
+                    }
                     execute!(terminal.backend_mut(), EnterAlternateScreen)?;
                     terminal.clear()?;
                 }
@@ -88,11 +109,17 @@ pub(crate) fn tui_loop(
             _ => {}
         }
     };
-    cleanup_terminal(&mut terminal)?;
+    cleanup_terminal(&mut terminal, enhanced_keyboard)?;
     result
 }
 
-fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+fn cleanup_terminal(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    enhanced_keyboard: bool,
+) -> io::Result<()> {
+    if enhanced_keyboard {
+        execute!(terminal.backend_mut(), PopKeyboardEnhancementFlags)?;
+    }
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
@@ -182,10 +209,10 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
             Action::Continue
         }
         Command::CloseWorkspace => Action::CloseWorkspace,
-        Command::TogglePin => {
+        Command::ToggleMark => {
             if let Err(error) = app.toggle_selected_pin() {
                 crate::herdr::notify_error(
-                    &format!("Pin failed: {error}"),
+                    &format!("Mark failed: {error}"),
                     &app.config.notifications,
                 );
             }
@@ -1076,17 +1103,24 @@ mod tests {
     }
 
     #[test]
-    fn registry_maps_ctrl_b_to_pin() {
+    fn registry_maps_ctrl_m_to_mark_without_stealing_enter() {
         let app = App::new(Config::default(), Theme::load(false));
-        let pin = keybindings(&app)
+        let mark = keybindings(&app)
             .into_iter()
-            .find(|binding| binding.command == Command::TogglePin)
+            .find(|binding| binding.command == Command::ToggleMark)
             .unwrap();
 
-        assert!(pin.matches(
+        assert!(mark.label.contains("mark"));
+        assert!(mark.matches(
             &app,
-            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::CONTROL)
+            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::CONTROL)
         ));
+        assert!(!mark.matches(&app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        assert!(keybindings(&app)
+            .into_iter()
+            .find(|binding| binding.command == Command::Open)
+            .unwrap()
+            .matches(&app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
     }
 
     #[test]

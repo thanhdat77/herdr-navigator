@@ -120,13 +120,13 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Ctrl-Z` | Zoxide |
 | `Ctrl-R` | Roots |
 | `Ctrl-X` | Close the matching open workspace |
-| `Ctrl-B` | Pin or unpin the selected item |
+| `Ctrl-M` | Mark or unmark the selected item |
 | `Ctrl-O` | Toggle preview |
 | `Ctrl-U` | Clear query and filter |
 | `?` | Show active keybindings |
 | `Esc` / `Ctrl-C` | Back or close |
 
-Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. Pinned items use `★`, the focused workspace uses `◆`, selection uses `→`, and source trees use `▾`, `├─`, and `└─` markers.
+Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. Marked items use `★`, the focused workspace uses `◆`, selection uses `→`, and source trees use `▾`, `├─`, and `└─` markers.
 
 Structured search narrows large result sets:
 
