@@ -119,7 +119,7 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Ctrl-L` | Sessions |
 | `Ctrl-Z` | Zoxide |
 | `Ctrl-R` | Roots |
-| `Ctrl-X` | Close the matching open workspace |
+| `Ctrl-X` | Close the open workspace matching the selected item |
 | `Ctrl-B` | Mark or unmark the selected item |
 | `Ctrl-O` | Toggle preview |
 | `Ctrl-U` | Clear query and filter |
@@ -127,6 +127,8 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Esc` / `Ctrl-C` | Back or close |
 
 Status glyphs follow Herdr's `prefix+g` visual language: `◉` blocked/attention, animated Braille spinner working, `●` idle, `✓` done, and `○` unknown. Marked items use a yellow `◆`, the focused workspace uses `◆`, selection uses `→`, and source trees use `▾`, `├─`, and `└─` markers.
+
+On the initial unfiltered view, the previous workspace stays first, followed by marked items and then the normal source order.
 
 Structured search narrows large result sets:
 
@@ -140,6 +142,12 @@ Structured search narrows large result sets:
 Set `vim_mode = true` for normal-mode `j`/`k`, source keys, and `/` search. All source shortcuts can be remapped through `[picker.filter_keys]`.
 
 ## Power moves
+
+### Close an open directory
+
+Select an `open` or `agent` entry, or a `project`, `root`, or `zoxide` entry that matches an open workspace, then press `Ctrl-X`. Navigator closes that workspace and refreshes the list.
+
+Navigator refuses to close the workspace that owns the picker; switch away first. Directories that are not open and server, session, quick-action, or plugin entries are left unchanged.
 
 ### Jump Back
 
