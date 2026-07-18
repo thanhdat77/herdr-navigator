@@ -27,7 +27,7 @@ prefix+t  →  type  →  Enter
 ## Install
 
 ```bash
-herdr plugin install thanhdat77/herdr-navigator --ref v0.3.2 --yes
+herdr plugin install thanhdat77/herdr-navigator --ref v0.3.3 --yes
 herdr plugin action invoke herdr-navigator.open
 ```
 
@@ -47,7 +47,7 @@ Sorry for the migration. This completes the rename while the project is still yo
 
 ```bash
 herdr plugin uninstall herdr-picker-plus
-herdr plugin install thanhdat77/herdr-navigator --ref v0.3.2 --yes
+herdr plugin install thanhdat77/herdr-navigator --ref v0.3.3 --yes
 herdr server reload-config
 ```
 

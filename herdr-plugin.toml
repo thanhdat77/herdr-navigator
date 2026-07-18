@@ -1,6 +1,6 @@
 id = "herdr-navigator"
 name = "Herdr Navigator"
-version = "0.3.2"
+version = "0.3.3"
 min_herdr_version = "0.7.3"
 description = "Jump to any Herdr workspace, agent, project, session, remote, directory, or action from one fuzzy navigator."
 platforms = ["linux", "macos"]

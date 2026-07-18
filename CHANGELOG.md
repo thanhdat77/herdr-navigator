@@ -4,7 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-18
+
 ### Fixed
+- Inherit all 18 built-in themes from Herdr 0.7.4, including Dracula ([#3](https://github.com/thanhdat77/herdr-navigator/issues/3)).
 - Preserve Herdr Plus `[[tabs.panes]]` splits, labels, and startup commands when opening projects from Navigator.
 
 ## [0.3.2] - 2026-07-15
