@@ -165,9 +165,9 @@ impl App {
                 && self.entries[*idx_b].source == Source::Workspace
                 && self.entries[*idx_b].workspace_id.as_deref()
                     == self.previous_workspace_id.as_deref();
-            user_pinned_b
-                .cmp(&user_pinned_a)
-                .then_with(|| previous_pinned_b.cmp(&previous_pinned_a))
+            previous_pinned_b
+                .cmp(&previous_pinned_a)
+                .then_with(|| user_pinned_b.cmp(&user_pinned_a))
                 .then_with(|| score_b.cmp(score_a))
                 .then_with(|| {
                     self.config
@@ -902,6 +902,25 @@ mod tests {
         save_pinned_entries(&path, &app.pinned_entries).unwrap();
         assert_eq!(read_pinned_entries(&path).unwrap(), app.pinned_entries);
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn previous_workspace_sorts_before_marked_entries() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let marked = entry(Source::Root, "/marked", "marked");
+        let mut previous = entry(Source::Workspace, "/previous", "previous");
+        previous.workspace_id = Some("w2".into());
+        previous.action = EntryAction::FocusWorkspace { id: "w2".into() };
+        app.entries = vec![marked, previous];
+        app.pinned_entries.insert(pin_key(&app.entries[0]));
+        app.previous_workspace_id = Some("w2".into());
+
+        app.apply_filter();
+
+        assert_eq!(
+            app.selected_entry().unwrap().workspace_id.as_deref(),
+            Some("w2")
+        );
     }
 
     #[test]

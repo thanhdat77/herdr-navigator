@@ -544,10 +544,10 @@ fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Col
         && entry.workspace_id == app.previous_workspace_id;
     if is_current {
         ("  ◆  ", app.theme.accent)
-    } else if app.is_pinned(entry) {
-        ("  ★  ", app.theme.yellow)
     } else if is_previous {
         ("  ◆  ", app.theme.red)
+    } else if app.is_pinned(entry) {
+        ("  ◆  ", app.theme.yellow)
     } else if group_end {
         ("  └─ ", app.theme.overlay0)
     } else {
@@ -945,6 +945,33 @@ mod tests {
         assert_eq!(
             entry_branch(&app, &current, false),
             ("  ◆  ", app.theme.accent)
+        );
+    }
+
+    #[test]
+    fn marked_entry_uses_a_yellow_diamond() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let marked = entry(Source::Root, "Marked");
+        app.pinned_entries.insert("root:Marked".into());
+
+        assert_eq!(
+            entry_branch(&app, &marked, false),
+            ("  ◆  ", app.theme.yellow)
+        );
+    }
+
+    #[test]
+    fn previous_workspace_marker_wins_over_mark() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut previous = entry(Source::Workspace, "Previous");
+        previous.workspace_id = Some("w2".into());
+        previous.action = EntryAction::FocusWorkspace { id: "w2".into() };
+        app.previous_workspace_id = Some("w2".into());
+        app.pinned_entries.insert("workspace:w2".into());
+
+        assert_eq!(
+            entry_branch(&app, &previous, false),
+            ("  ◆  ", app.theme.red)
         );
     }
 
