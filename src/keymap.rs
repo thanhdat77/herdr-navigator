@@ -19,6 +19,7 @@ pub(crate) enum Command {
     ToggleMark,
     TogglePreview,
     ToggleHelp,
+    Update,
     Filter(Source),
 }
 
@@ -278,6 +279,15 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
             Some("keys"),
         ),
     ]);
+    if app.update_available.is_some() {
+        bindings.push(binding(
+            Command::Update,
+            vec![key(KeyCode::F(5), KeyModifiers::NONE, "F5")],
+            "install available update",
+            "Actions",
+            None,
+        ));
+    }
     bindings
 }
 

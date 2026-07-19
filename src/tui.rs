@@ -76,6 +76,22 @@ pub(crate) fn tui_loop(
                     execute!(terminal.backend_mut(), EnterAlternateScreen)?;
                     terminal.clear()?;
                 }
+                Action::Update => {
+                    cleanup_terminal(&mut terminal)?;
+                    if let Some(version) = app.update_available.clone() {
+                        if confirm_update(&version)? {
+                            match crate::update::install(&version) {
+                                Ok(()) => eprintln!("Updated Herdr Navigator to v{version}."),
+                                Err(error) => eprintln!("Update failed: {error}"),
+                            }
+                            wait_for_key();
+                            return Ok(());
+                        }
+                    }
+                    enable_raw_mode()?;
+                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                    terminal.clear()?;
+                }
                 Action::CloseWorkspace => {
                     if let Err(e) = app.close_selected_workspace() {
                         crate::herdr::notify_error(
@@ -99,6 +115,16 @@ fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io
     Ok(())
 }
 
+fn confirm_update(version: &str) -> io::Result<bool> {
+    eprintln!("Update Herdr Navigator to v{version}? [y/N]");
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
+}
+
 fn wait_for_key() {
     eprintln!("press enter to close...");
     let mut s = String::new();
@@ -109,6 +135,7 @@ enum Action {
     Continue,
     Quit,
     Open,
+    Update,
     CloseWorkspace,
 }
 
@@ -151,6 +178,7 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
             }
         }
         Command::Open => Action::Open,
+        Command::Update => Action::Update,
         Command::MoveUp => {
             app.prev();
             Action::Continue
@@ -229,7 +257,7 @@ fn draw(f: &mut Frame, app: &App) {
     if let Some(version) = &app.update_available {
         outer = outer.title_top(
             Line::from(Span::styled(
-                format!(" ↑ v{version} available "),
+                format!(" ↑ v{version} available · F5 update "),
                 Style::default()
                     .fg(app.theme.yellow)
                     .add_modifier(Modifier::BOLD),
@@ -879,15 +907,29 @@ mod tests {
     }
 
     #[test]
-    fn update_badge_renders_in_the_header() {
+    fn update_badge_renders_action_and_f5_triggers_it() {
         let mut app = App::new(Config::default(), Theme::load(false));
+        assert!(matches!(
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::F(5), crossterm::event::KeyModifiers::NONE)
+            ),
+            Action::Continue
+        ));
         app.update_available = Some("0.3.2".into());
 
         let backend = TestBackend::new(70, 8);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw(f, &app)).unwrap();
 
-        assert!(buffer_text(&terminal).contains("↑ v0.3.2 available"));
+        assert!(buffer_text(&terminal).contains("↑ v0.3.2 available · F5 update"));
+        assert!(matches!(
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::F(5), crossterm::event::KeyModifiers::NONE)
+            ),
+            Action::Update
+        ));
     }
 
     #[test]

@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Press `F5` on the update badge to confirm and install the available release through Herdr.
+
 ## [0.3.3] - 2026-07-18
 
 ### Fixed

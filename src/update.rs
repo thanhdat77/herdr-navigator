@@ -6,9 +6,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::paths::plugin_config_dir;
+use crate::{herdr::run_herdr, paths::plugin_config_dir};
 
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const PLUGIN_SOURCE: &str = "thanhdat77/herdr-navigator";
 const RELEASE_REPO: &str = "https://github.com/thanhdat77/herdr-navigator.git";
 const CACHE_SECONDS: u64 = 86_400;
 
@@ -33,6 +34,24 @@ fn check_for_update() -> Option<String> {
     let _ = fs::create_dir_all(plugin_config_dir());
     let _ = fs::write(cache_path, format!("{now}\n{latest}\n"));
     newer_version(CURRENT_VERSION, &latest)
+}
+
+pub(crate) fn install(version: &str) -> Result<(), String> {
+    let release =
+        release_ref(version).ok_or_else(|| format!("invalid release version: {version}"))?;
+    run_herdr([
+        "plugin",
+        "install",
+        PLUGIN_SOURCE,
+        "--ref",
+        &release,
+        "--yes",
+    ])
+}
+
+fn release_ref(version: &str) -> Option<String> {
+    let [major, minor, patch] = parse_version(version)?;
+    Some(format!("v{major}.{minor}.{patch}"))
 }
 
 fn fetch_latest_release() -> Option<String> {
@@ -105,6 +124,12 @@ mod tests {
         assert_eq!(latest, "0.3.2");
         assert_eq!(newer_version("0.3.0", &latest), Some("0.3.2".into()));
         assert_eq!(newer_version("0.3.2", &latest), None);
+    }
+
+    #[test]
+    fn release_ref_accepts_stable_versions_only() {
+        assert_eq!(release_ref("0.3.3"), Some("v0.3.3".into()));
+        assert_eq!(release_ref("0.3.3; rm -rf /"), None);
     }
 
     #[test]

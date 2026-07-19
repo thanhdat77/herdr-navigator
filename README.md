@@ -240,7 +240,7 @@ max_depth = 3
 Useful config surfaces:
 
 - `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
-- `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available` in the header; failures stay silent.
+- `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available · F5 update`; press `F5`, confirm, and Navigator installs that release through Herdr. Failures stay silent until an update is requested.
 - `[notifications]` can disable notifications entirely or use Herdr's default sounds, no sound, or a custom audio file.
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
