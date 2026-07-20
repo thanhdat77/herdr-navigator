@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Apply one reusable Herdr Plus tabs/panes template to any zoxide/root directory with a configurable shortcut (`Alt-Enter` by default), creating the workspace or appending fresh template tabs when already open; `Enter` keeps normal behavior.
 - Press `F5` on the update badge to confirm and install the available release through Herdr.
 
 ## [0.3.3] - 2026-07-18

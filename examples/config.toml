@@ -10,6 +10,8 @@ agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 detailed_rows = true
 check_updates = true
+# directory_template = "default.toml"
+# directory_template_key = "alt-enter"
 
 [notifications]
 enabled = true

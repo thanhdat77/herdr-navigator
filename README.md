@@ -87,6 +87,14 @@ A single result list can move between live Herdr state and things that are not o
 
 Herdr's built-in navigation remains the simpler choice for a single entity type. Navigator is for the moment when “where next?” could mean a workspace, agent, path, session, remote, project, or action.
 
+## Standout features
+
+| Feature | What it does |
+| --- | --- |
+| **Last Workspace** | `herdr-navigator.jump-back` toggles between the current and previously visited local workspace. |
+| **Pin** | `Ctrl-B` marks important entries and keeps them ahead of the normal source order. |
+| **Open with Template** | `Alt-Enter` by default applies one reusable Herdr Plus tabs/panes template to any zoxide/root directory, creating its workspace or appending fresh template tabs when already open. |
+
 ## What it can open
 
 | Source | Data | Enter does |
@@ -96,8 +104,8 @@ Herdr's built-in navigation remains the simpler choice for a single entity type.
 | `project` | Herdr Plus project TOML | Reuse or create a project workspace and apply tabs and split panes |
 | `session` | Herdr sessions + configured local entries | Attach the local session |
 | `server` | Configured remote targets | Hand off to the remote Herdr server |
-| `zoxide` | `zoxide query -l` | Reuse or create a directory workspace |
-| `root` | Configured filesystem roots | Reuse or create a directory workspace |
+| `zoxide` | `zoxide query -l` | Enter opens normally; `Alt-Enter` applies the shared template |
+| `root` | Configured filesystem roots | Enter opens normally; `Alt-Enter` applies the shared template |
 | `quick` | Herdr Plus Quick Actions | Open the Quick Actions picker |
 | `plugin` | Command/JSON integrations | Run the configured open command |
 
@@ -108,7 +116,8 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | Key | Action |
 | --- | --- |
 | type | Fuzzy search |
-| `Enter` | Open selected item |
+| `Enter` | Open selected item normally |
+| `Alt-Enter` | Apply `picker.directory_template` to the selected zoxide/root directory |
 | `Up` / `Down` | Move selection |
 | `Tab` | Cycle source filters |
 | `Ctrl-W` | Workspaces |
@@ -214,6 +223,8 @@ agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 detailed_rows = true # source-aware Herdr-style result rows
 check_updates = true # daily background release check
+# directory_template = "default.toml" # Herdr Plus project file
+# directory_template_key = "alt-enter" # or ctrl-g / ctrl-t
 vim_mode = false
 
 [notifications]
@@ -241,6 +252,7 @@ Useful config surfaces:
 
 - `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
 - `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available · F5 update`; press `F5`, confirm, and Navigator installs that release through Herdr. Failures stay silent until an update is requested.
+- `picker.directory_template = "default.toml"` reuses that Herdr Plus project file from its `projects/` config directory. `Enter` keeps normal reuse/create behavior. `picker.directory_template_key` defaults to `alt-enter` and also accepts Ctrl forms such as `ctrl-g`; the shortcut always applies all template tabs, panes, labels, and commands using the selected directory instead of the template's `working_dir`, creating the workspace or appending fresh template tabs.
 - `[notifications]` can disable notifications entirely or use Herdr's default sounds, no sound, or a custom audio file.
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.

@@ -42,6 +42,11 @@ detailed_rows = true
 # are ignored; a newer version appears as a badge in the Navigator header.
 check_updates = true
 
+# Optional Herdr Plus project filename. Alt-Enter applies its tabs/panes to the
+# selected zoxide/root dir, appending new tabs if its workspace already exists.
+# directory_template = "default.toml"
+# directory_template_key = "alt-enter" # also accepts Ctrl forms such as "ctrl-g"
+
 # Vim-style normal mode: j/k move, source keys filter, and / starts searching.
 vim_mode = false
 

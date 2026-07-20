@@ -1,4 +1,7 @@
-use std::{env, fs, path::Path};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use serde_json::Value;
 
@@ -19,10 +22,7 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
         if path.extension().and_then(|s| s.to_str()) != Some("toml") {
             continue;
         }
-        let Ok(s) = fs::read_to_string(&path) else {
-            continue;
-        };
-        let Ok(project) = toml::from_str::<Project>(&s) else {
+        let Ok(project) = load_project_file(&path) else {
             continue;
         };
         let p = expand_path(&project.working_dir);
@@ -41,6 +41,31 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
         });
     }
     out
+}
+
+pub(crate) fn load_project_template(name: &str) -> Result<Project, String> {
+    load_project_file(&herdr_plus_projects_dir().join(template_filename(name)?))
+}
+
+fn template_filename(name: &str) -> Result<PathBuf, String> {
+    let name = name.trim();
+    if name.is_empty() || Path::new(name).file_name().and_then(|part| part.to_str()) != Some(name) {
+        return Err("directory_template must be a Herdr Plus project filename".into());
+    }
+    let mut file = PathBuf::from(name);
+    if file.extension().is_none() {
+        file.set_extension("toml");
+    }
+    if file.extension().and_then(|extension| extension.to_str()) != Some("toml") {
+        return Err("directory_template must use the .toml extension".into());
+    }
+    Ok(file)
+}
+
+fn load_project_file(path: &Path) -> Result<Project, String> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| format!("failed to read template {}: {error}", path.display()))?;
+    toml::from_str(&source).map_err(|error| format!("invalid template {}: {error}", path.display()))
 }
 
 pub(crate) fn quick_actions_entry() -> Entry {
@@ -77,14 +102,32 @@ pub(crate) fn bootstrap_project_tabs(
         .pointer("/result/root_pane/pane_id")
         .and_then(|v| v.as_str())
         .ok_or("workspace create did not return root pane")?;
+    build_project_tabs(project, workspace_id, Some(root_pane), cwd)
+}
+
+pub(crate) fn append_project_tabs(
+    project: &Project,
+    workspace_id: &str,
+    cwd: &Path,
+) -> Result<(), String> {
+    build_project_tabs(project, workspace_id, None, cwd)
+}
+
+fn build_project_tabs(
+    project: &Project,
+    workspace_id: &str,
+    first_root: Option<&str>,
+    cwd: &Path,
+) -> Result<(), String> {
     let mut runs = Vec::new();
 
     for (tab_index, tab) in project.tabs.iter().enumerate() {
-        let tab_root = if tab_index == 0 {
-            let _ = run_herdr(["tab", "rename", &format!("{workspace_id}:t1"), &tab.name]);
-            root_pane.to_string()
-        } else {
-            herdr_json([
+        let tab_root = match (tab_index, first_root) {
+            (0, Some(root_pane)) => {
+                let _ = run_herdr(["tab", "rename", &format!("{workspace_id}:t1"), &tab.name]);
+                root_pane.to_string()
+            }
+            _ => herdr_json([
                 "tab",
                 "create",
                 "--workspace",
@@ -98,7 +141,7 @@ pub(crate) fn bootstrap_project_tabs(
             .pointer("/result/root_pane/pane_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| format!("tab create did not return root pane for {}", tab.name))?
-            .to_string()
+            .to_string(),
         };
 
         let mut previous_pane = tab_root.clone();
@@ -153,6 +196,41 @@ pub(crate) fn bootstrap_project_tabs(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loads_reusable_template_by_safe_filename() {
+        assert_eq!(
+            template_filename("default"),
+            Ok(std::path::PathBuf::from("default.toml"))
+        );
+        assert_eq!(
+            template_filename("default.toml"),
+            Ok(std::path::PathBuf::from("default.toml"))
+        );
+        assert!(template_filename("../default.toml").is_err());
+
+        let path = env::temp_dir().join(format!(
+            "herdr-navigator-template-{}.toml",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            r#"
+            name = "Reusable"
+            working_dir = "/ignored"
+
+            [[tabs]]
+            name = "agent"
+            command = "claude"
+            "#,
+        )
+        .unwrap();
+        let project = load_project_file(&path).unwrap();
+        let _ = fs::remove_file(path);
+
+        assert_eq!(project.name, "Reusable");
+        assert_eq!(project.tabs[0].name, "agent");
+    }
 
     #[test]
     fn parses_split_pane_project_tabs() {
@@ -257,17 +335,21 @@ command = "tail"
         });
         let previous_bin = env::var_os("HERDR_BIN_PATH");
         env::set_var("HERDR_BIN_PATH", &fake);
-        let result = bootstrap_project_tabs(&project, &create_json, Path::new("/tmp/project"));
+        let bootstrap_result =
+            bootstrap_project_tabs(&project, &create_json, Path::new("/tmp/project"));
+        let bootstrap_calls = fs::read_to_string(&log).unwrap();
+        fs::write(&log, "").unwrap();
+        let append_result = append_project_tabs(&project, "w1", Path::new("/tmp/project"));
+        let append_calls = fs::read_to_string(&log).unwrap();
         match previous_bin {
             Some(path) => env::set_var("HERDR_BIN_PATH", path),
             None => env::remove_var("HERDR_BIN_PATH"),
         }
-        let calls = fs::read_to_string(&log).unwrap();
         fs::remove_dir_all(&dir).unwrap();
 
-        result.unwrap();
+        bootstrap_result.unwrap();
         assert_eq!(
-            calls.lines().collect::<Vec<_>>(),
+            bootstrap_calls.lines().collect::<Vec<_>>(),
             vec![
                 "tab rename w1:t1 agent",
                 "tab create --workspace w1 --cwd /tmp/project --label server --no-focus",
@@ -281,5 +363,17 @@ command = "tail"
                 "pane run w1:p4 tail",
             ]
         );
+        append_result.unwrap();
+        let append_calls = append_calls.lines().collect::<Vec<_>>();
+        assert_eq!(
+            &append_calls[..2],
+            &[
+                "tab create --workspace w1 --cwd /tmp/project --label agent --no-focus",
+                "tab create --workspace w1 --cwd /tmp/project --label server --no-focus",
+            ]
+        );
+        assert!(!append_calls
+            .iter()
+            .any(|call| call.starts_with("tab rename")));
     }
 }

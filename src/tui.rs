@@ -59,11 +59,11 @@ pub(crate) fn tui_loop(
             Event::Key(key) if key.kind == KeyEventKind::Press => match handle_key(app, key) {
                 Action::Continue => {}
                 Action::Quit => break Ok(()),
-                Action::Open => {
+                action @ (Action::Open | Action::OpenTemplate) => {
                     // leave the TUI while the action runs: herdr CLI output goes to
                     // the normal screen instead of corrupting the alternate screen
                     cleanup_terminal(&mut terminal)?;
-                    let outcome = app.open_selected();
+                    let outcome = app.open_selected(matches!(action, Action::OpenTemplate));
                     if let Err(e) = outcome {
                         eprintln!("{e}");
                         wait_for_key();
@@ -135,6 +135,7 @@ enum Action {
     Continue,
     Quit,
     Open,
+    OpenTemplate,
     Update,
     CloseWorkspace,
 }
@@ -178,6 +179,7 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
             }
         }
         Command::Open => Action::Open,
+        Command::OpenTemplate => Action::OpenTemplate,
         Command::Update => Action::Update,
         Command::MoveUp => {
             app.prev();
@@ -847,6 +849,12 @@ fn preview_text(app: &App, e: &Entry) -> String {
         EntryAction::FocusOrCreateDir => "create dir workspace",
     };
     lines.push(format!("enter: {action}"));
+    if let Some(template) = app.directory_template_for_selected() {
+        lines.push(format!(
+            "{}: apply template {template}",
+            app.config.picker.directory_template_key
+        ));
+    }
     lines.join("\n")
 }
 
@@ -859,7 +867,7 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Agent => theme.yellow,
         Source::Server => theme.green,
         Source::Session => theme.green,
-        Source::QuickAction => theme.peach,
+        Source::QuickAction => theme.mauve,
         Source::Integration => theme.red,
     }
 }
@@ -904,6 +912,42 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    #[test]
+    fn herdr_plus_sources_share_color() {
+        let theme = Theme::load(false);
+        assert_eq!(
+            source_color(&theme, &Source::Project),
+            source_color(&theme, &Source::QuickAction)
+        );
+    }
+
+    #[test]
+    fn alt_enter_opens_selected_directory_with_configured_template() {
+        let mut config = Config::default();
+        config.picker.directory_template = Some("default.toml".into());
+        let mut app = App::new(config, Theme::load(false));
+        app.entries = vec![entry(Source::Zoxide, "/tmp")];
+        app.apply_filter();
+
+        assert!(matches!(
+            handle_key(&mut app, key(KeyCode::Enter)),
+            Action::Open
+        ));
+        assert!(matches!(
+            handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT)),
+            Action::OpenTemplate
+        ));
+
+        app.config.picker.directory_template_key = "ctrl-g".into();
+        assert!(matches!(
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::CONTROL)
+            ),
+            Action::OpenTemplate
+        ));
     }
 
     #[test]

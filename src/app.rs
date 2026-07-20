@@ -247,7 +247,22 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn open_selected(&self) -> Result<(), String> {
+    pub(crate) fn directory_template_for_selected(&self) -> Option<&str> {
+        let template = self
+            .config
+            .picker
+            .directory_template
+            .as_deref()
+            .map(str::trim)
+            .filter(|template| !template.is_empty())?;
+        matches!(
+            &self.selected_entry()?.action,
+            EntryAction::FocusOrCreateDir
+        )
+        .then_some(template)
+    }
+
+    pub(crate) fn open_selected(&self, use_directory_template: bool) -> Result<(), String> {
         let e = self.selected_entry().ok_or("nothing selected")?;
         let tracks_workspace_transition = self.config.jump_back.enabled
             && matches!(
@@ -279,9 +294,11 @@ impl App {
                 true,
                 true,
             ),
-            EntryAction::FocusOrCreateDir => {
-                (self.focus_or_create_dir(&e.path, &e.title), true, true)
-            }
+            EntryAction::FocusOrCreateDir => (
+                self.focus_or_create_dir(&e.path, &e.title, use_directory_template),
+                true,
+                true,
+            ),
             EntryAction::RunCommand {
                 command,
                 notify_success,
@@ -375,8 +392,40 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn focus_or_create_dir(&self, path: &Path, label: &str) -> Result<(), String> {
+    pub(crate) fn focus_or_create_dir(
+        &self,
+        path: &Path,
+        label: &str,
+        use_directory_template: bool,
+    ) -> Result<(), String> {
         let key = canonical_str(path).unwrap_or_else(|| path.display().to_string());
+        if use_directory_template {
+            let template_name = self
+                .config
+                .picker
+                .directory_template
+                .as_deref()
+                .ok_or("no directory_template configured")?;
+            let template = herdr_plus::load_project_template(template_name)?;
+            if let Some(workspace_id) = self
+                .matching_template_workspace_by_key(&key)
+                .map(|workspace| workspace.id.clone())
+            {
+                run_herdr(["workspace", "focus", &workspace_id])?;
+                return herdr_plus::append_project_tabs(&template, &workspace_id, path);
+            }
+            let json = herdr_json([
+                "workspace",
+                "create",
+                "--cwd",
+                &path.display().to_string(),
+                "--label",
+                &format!("dir: {label}"),
+                "--focus",
+            ])?;
+            return herdr_plus::bootstrap_project_tabs(&template, &json, path);
+        }
+
         if self.config.picker.reuse_existing {
             if let Some(ws) = self.matching_dir_workspace_by_key(&key) {
                 return run_herdr(["workspace", "focus", &ws.id]);
@@ -385,14 +434,13 @@ impl App {
         if !self.config.picker.create_missing {
             return Err("create_missing=false and no workspace exists".into());
         }
-        let label = format!("dir: {label}");
         run_herdr([
             "workspace",
             "create",
             "--cwd",
             &path.display().to_string(),
             "--label",
-            &label,
+            &format!("dir: {label}"),
             "--focus",
         ])
     }
@@ -419,6 +467,14 @@ impl App {
             .get(key)?
             .iter()
             .find(|ws| ws.kind == WorkspaceKind::Dir)
+    }
+
+    fn matching_template_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
+        let workspaces = self.path_to_workspaces.get(key)?;
+        workspaces
+            .iter()
+            .find(|workspace| workspace.kind == WorkspaceKind::Dir)
+            .or_else(|| workspaces.first())
     }
 }
 
@@ -945,6 +1001,40 @@ mod tests {
 
         assert_eq!(app.matching_project_workspace(&project).unwrap().id, "w1");
         assert_eq!(app.matching_dir_workspace(&dir).unwrap().id, "w2");
+    }
+
+    #[test]
+    fn offers_directory_template_for_new_and_existing_directory_workspaces() {
+        let mut config = Config::default();
+        config.picker.directory_template = Some("default.toml".into());
+        let mut app = App::new(config, Theme::load(false));
+        app.entries = vec![entry(Source::Zoxide, "/tmp", "tmp")];
+        app.apply_filter();
+
+        assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
+
+        app.path_to_workspaces.insert(
+            "/tmp".into(),
+            vec![workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp")],
+        );
+        assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
+
+        app.config.picker.create_missing = false;
+        assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
+
+        app.path_to_workspaces.insert(
+            "/tmp".into(),
+            vec![workspace(
+                "w1",
+                "project: tmp",
+                WorkspaceKind::Project,
+                "/tmp",
+            )],
+        );
+        assert_eq!(
+            app.matching_template_workspace_by_key("/tmp").unwrap().id,
+            "w1"
+        );
     }
 
     #[test]

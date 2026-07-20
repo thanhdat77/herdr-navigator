@@ -52,6 +52,10 @@ pub(crate) struct PickerConfig {
     #[serde(default = "yes")]
     pub(crate) check_updates: bool,
     #[serde(default)]
+    pub(crate) directory_template: Option<String>,
+    #[serde(default = "default_directory_template_key")]
+    pub(crate) directory_template_key: String,
+    #[serde(default)]
     pub(crate) vim_mode: bool,
     #[serde(default)]
     pub(crate) vim_filter_search: bool,
@@ -194,6 +198,9 @@ fn default_source_priority_boost() -> i64 {
 fn default_agent_sort() -> String {
     "herdr".into()
 }
+fn default_directory_template_key() -> String {
+    "alt-enter".into()
+}
 fn default_notification_sound() -> String {
     "default".into()
 }
@@ -218,7 +225,7 @@ fn default_filter_keys() -> Vec<(Source, char)> {
         .collect()
 }
 
-fn parse_filter_key(value: &str) -> Option<char> {
+pub(crate) fn parse_ctrl_key(value: &str) -> Option<char> {
     let key = value
         .trim()
         .to_ascii_lowercase()
@@ -242,6 +249,8 @@ impl Default for PickerConfig {
             preview: true,
             detailed_rows: true,
             check_updates: true,
+            directory_template: None,
+            directory_template_key: default_directory_template_key(),
             vim_mode: false,
             vim_filter_search: false,
             filter_keys: HashMap::new(),
@@ -279,9 +288,7 @@ impl PickerConfig {
     fn custom_filter_keys(&self) -> Vec<(Source, char)> {
         self.filter_keys
             .iter()
-            .filter_map(|(source, key)| {
-                Some((Source::from_config(source)?, parse_filter_key(key)?))
-            })
+            .filter_map(|(source, key)| Some((Source::from_config(source)?, parse_ctrl_key(key)?)))
             .collect()
     }
 
@@ -420,6 +427,27 @@ mod tests {
         .unwrap();
 
         assert!(!config.picker.detailed_rows);
+    }
+
+    #[test]
+    fn directory_template_defaults_off_and_accepts_herdr_plus_filename() {
+        assert!(Config::default().picker.directory_template.is_none());
+        assert_eq!(Config::default().picker.directory_template_key, "alt-enter");
+
+        let config: Config = toml::from_str(
+            r#"
+            [picker]
+            directory_template = "default.toml"
+            directory_template_key = "ctrl-g"
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.picker.directory_template.as_deref(),
+            Some("default.toml")
+        );
+        assert_eq!(config.picker.directory_template_key, "ctrl-g");
     }
 
     #[test]

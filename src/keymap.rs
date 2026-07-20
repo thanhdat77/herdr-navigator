@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     app::{App, InputMode},
+    config::parse_ctrl_key,
     model::Source,
 };
 
@@ -9,6 +10,7 @@ use crate::{
 pub(crate) enum Command {
     Back,
     Open,
+    OpenTemplate,
     MoveUp,
     MoveDown,
     StartSearch,
@@ -129,6 +131,22 @@ fn key(code: KeyCode, modifiers: KeyModifiers, label: impl Into<String>) -> KeyS
         modifiers,
         label: label.into(),
         scope: Scope::Always,
+    }
+}
+
+fn directory_template_key(value: &str) -> Option<KeySpec> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "alt-enter" | "alt+enter" | "option-enter" | "option+enter" => {
+            Some(key(KeyCode::Enter, KeyModifiers::ALT, "⌥↵"))
+        }
+        _ => {
+            let key_char = parse_ctrl_key(value)?;
+            Some(key(
+                KeyCode::Char(key_char),
+                KeyModifiers::CONTROL,
+                format!("⌃{}", key_char.to_ascii_uppercase()),
+            ))
+        }
     }
 }
 
@@ -279,6 +297,19 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
             Some("keys"),
         ),
     ]);
+    if app.directory_template_for_selected().is_some() {
+        if let Some(template_key) =
+            directory_template_key(&app.config.picker.directory_template_key)
+        {
+            bindings.push(binding(
+                Command::OpenTemplate,
+                vec![template_key],
+                "open selected with directory template",
+                "Actions",
+                Some("template"),
+            ));
+        }
+    }
     if app.update_available.is_some() {
         bindings.push(binding(
             Command::Update,
