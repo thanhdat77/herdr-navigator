@@ -412,16 +412,16 @@ impl Theme {
         }
         let path = herdr_config_path();
         let Ok(s) = fs::read_to_string(path) else {
-            return Self::one_light();
+            return Self::catppuccin();
         };
         let Ok(v) = s.parse::<toml::Value>() else {
-            return Self::one_light();
+            return Self::catppuccin();
         };
         Self::from_herdr_config(&v)
     }
 
     fn from_herdr_config(v: &toml::Value) -> Self {
-        let mut theme = Self::one_light();
+        let mut theme = Self::catppuccin();
         if let Some(name) = v
             .get("theme")
             .and_then(|x| x.as_table())
@@ -560,6 +560,14 @@ mod tests {
 
     fn theme_value(toml_src: &str) -> toml::Value {
         toml_src.parse::<toml::Value>().expect("valid toml")
+    }
+
+    #[test]
+    fn uses_herdr_default_when_theme_name_is_unset() {
+        let theme = Theme::from_herdr_config(&theme_value(""));
+
+        assert_eq!(theme.panel_bg, rgb(24, 24, 37));
+        assert_eq!(theme.accent, rgb(137, 180, 250));
     }
 
     #[test]
