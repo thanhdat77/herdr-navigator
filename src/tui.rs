@@ -5,7 +5,10 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        MouseButton, MouseEvent, MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -34,8 +37,9 @@ pub(crate) fn tui_loop(
 ) -> io::Result<()> {
     enable_raw_mode()?;
     let mut out = io::stdout();
-    execute!(out, EnterAlternateScreen)?;
+    execute!(out, EnterAlternateScreen, EnableMouseCapture)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(out))?;
+    let mut list_hits = ListHits::default();
     let result = loop {
         if let Some(result) = update_check.as_ref().map(Receiver::try_recv) {
             match result {
@@ -47,7 +51,7 @@ pub(crate) fn tui_loop(
                 Err(TryRecvError::Empty) => {}
             }
         }
-        terminal.draw(|f| draw(f, app))?;
+        terminal.draw(|f| list_hits = draw(f, app))?;
         let animate = has_working_entry(app);
         if (animate || update_check.is_some()) && !event::poll(Duration::from_millis(125))? {
             if animate {
@@ -55,53 +59,63 @@ pub(crate) fn tui_loop(
             }
             continue;
         }
-        match event::read()? {
-            Event::Key(key) if key.kind == KeyEventKind::Press => match handle_key(app, key) {
-                Action::Continue => {}
-                Action::Quit => break Ok(()),
-                action @ (Action::Open | Action::OpenTemplate) => {
-                    // leave the TUI while the action runs: herdr CLI output goes to
-                    // the normal screen instead of corrupting the alternate screen
-                    cleanup_terminal(&mut terminal)?;
-                    let outcome = app.open_selected(matches!(action, Action::OpenTemplate));
-                    if let Err(e) = outcome {
-                        eprintln!("{e}");
+        let action = match event::read()? {
+            Event::Key(key) if key.kind == KeyEventKind::Press => handle_key(app, key),
+            Event::Mouse(mouse) => handle_mouse(app, mouse, &list_hits),
+            _ => Action::Continue,
+        };
+        match action {
+            Action::Continue => {}
+            Action::Quit => break Ok(()),
+            action @ (Action::Open | Action::OpenTemplate) => {
+                // leave the TUI while the action runs: herdr CLI output goes to
+                // the normal screen instead of corrupting the alternate screen
+                cleanup_terminal(&mut terminal)?;
+                let outcome = app.open_selected(matches!(action, Action::OpenTemplate));
+                if let Err(e) = outcome {
+                    eprintln!("{e}");
+                    wait_for_key();
+                }
+                if !persist {
+                    return Ok(());
+                }
+                app.refresh();
+                enable_raw_mode()?;
+                execute!(
+                    terminal.backend_mut(),
+                    EnterAlternateScreen,
+                    EnableMouseCapture
+                )?;
+                terminal.clear()?;
+            }
+            Action::Update => {
+                cleanup_terminal(&mut terminal)?;
+                if let Some(version) = app.update_available.clone() {
+                    if confirm_update(&version)? {
+                        match crate::update::install(&version) {
+                            Ok(()) => eprintln!("Updated Herdr Navigator to v{version}."),
+                            Err(error) => eprintln!("Update failed: {error}"),
+                        }
                         wait_for_key();
-                    }
-                    if !persist {
                         return Ok(());
                     }
-                    app.refresh();
-                    enable_raw_mode()?;
-                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
-                    terminal.clear()?;
                 }
-                Action::Update => {
-                    cleanup_terminal(&mut terminal)?;
-                    if let Some(version) = app.update_available.clone() {
-                        if confirm_update(&version)? {
-                            match crate::update::install(&version) {
-                                Ok(()) => eprintln!("Updated Herdr Navigator to v{version}."),
-                                Err(error) => eprintln!("Update failed: {error}"),
-                            }
-                            wait_for_key();
-                            return Ok(());
-                        }
-                    }
-                    enable_raw_mode()?;
-                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
-                    terminal.clear()?;
+                enable_raw_mode()?;
+                execute!(
+                    terminal.backend_mut(),
+                    EnterAlternateScreen,
+                    EnableMouseCapture
+                )?;
+                terminal.clear()?;
+            }
+            Action::CloseWorkspace => {
+                if let Err(e) = app.close_selected_workspace() {
+                    crate::herdr::notify_error(
+                        &format!("Close failed: {e}"),
+                        &app.config.notifications,
+                    );
                 }
-                Action::CloseWorkspace => {
-                    if let Err(e) = app.close_selected_workspace() {
-                        crate::herdr::notify_error(
-                            &format!("Close failed: {e}"),
-                            &app.config.notifications,
-                        );
-                    }
-                }
-            },
-            _ => {}
+            }
         }
     };
     cleanup_terminal(&mut terminal)?;
@@ -110,7 +124,7 @@ pub(crate) fn tui_loop(
 
 fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(terminal.backend_mut(), DisableMouseCapture, LeaveAlternateScreen)?;
     terminal.show_cursor()?;
     Ok(())
 }
@@ -138,6 +152,34 @@ enum Action {
     OpenTemplate,
     Update,
     CloseWorkspace,
+}
+
+#[derive(Default)]
+struct ListHits {
+    area: Rect,
+    rows: Vec<(std::ops::Range<u16>, usize)>,
+}
+
+fn handle_mouse(app: &mut App, mouse: MouseEvent, hits: &ListHits) -> Action {
+    if app.input_mode == InputMode::Help || !hits.area.contains((mouse.column, mouse.row).into()) {
+        return Action::Continue;
+    }
+
+    match mouse.kind {
+        MouseEventKind::ScrollUp => app.prev(),
+        MouseEventKind::ScrollDown => app.next(),
+        MouseEventKind::Down(MouseButton::Left) => {
+            let Some((_, row)) = hits.rows.iter().find(|(range, _)| range.contains(&mouse.row)) else {
+                return Action::Continue;
+            };
+            if app.selected == *row {
+                return Action::Open;
+            }
+            app.selected = *row;
+        }
+        _ => {}
+    }
+    Action::Continue
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Action {
@@ -248,7 +290,7 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
     }
 }
 
-fn draw(f: &mut Frame, app: &App) {
+fn draw(f: &mut Frame, app: &App) -> ListHits {
     let area = f.area();
     f.render_widget(Clear, area);
     let mut outer = Block::default()
@@ -317,7 +359,7 @@ fn draw(f: &mut Frame, app: &App) {
             .split(rows[1])
     };
 
-    draw_list(f, app, body[0]);
+    let list_hits = draw_list(f, app, body[0]);
     if app.preview {
         draw_preview(f, app, body[1]);
     }
@@ -326,6 +368,7 @@ fn draw(f: &mut Frame, app: &App) {
     if app.input_mode == InputMode::Help {
         draw_keybindings_help(f, app, area);
     }
+    list_hits
 }
 
 fn draw_key_hints(f: &mut Frame, app: &App, area: Rect) {
@@ -585,10 +628,11 @@ fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Col
     }
 }
 
-fn draw_list(f: &mut Frame, app: &App, area: Rect) {
+fn draw_list(f: &mut Frame, app: &App, area: Rect) -> ListHits {
     let show_scores = !app.query.trim().is_empty();
     let row_width = area.width.saturating_sub(3) as usize;
     let mut items = Vec::new();
+    let mut item_entries = Vec::new();
     let mut selected_row = None;
     for (row, idx) in app.filtered.iter().enumerate() {
         let e = &app.entries[*idx];
@@ -602,6 +646,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                 format!(" ▾ {} ", e.source_name()),
                 Style::default().fg(color).add_modifier(Modifier::BOLD),
             ))));
+            item_entries.push(None);
         }
 
         if row == app.selected {
@@ -749,7 +794,9 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
             }
             items.push(ListItem::new(Line::from(spans)));
         }
+        item_entries.push(Some(row));
     }
+    let item_heights: Vec<u16> = items.iter().map(|item| item.height() as u16).collect();
     let mut state = ListState::default();
     state.select(selected_row);
     let list = List::new(items)
@@ -761,6 +808,23 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         )
         .highlight_symbol("→ ");
     f.render_stateful_widget(list, area, &mut state);
+
+    let mut rows = Vec::new();
+    let mut y = area.y;
+    for (entry, height) in item_entries
+        .into_iter()
+        .zip(item_heights)
+        .skip(state.offset())
+    {
+        if y.saturating_add(height) > area.bottom() {
+            break;
+        }
+        if let Some(entry) = entry {
+            rows.push((y..y + height, entry));
+        }
+        y += height;
+    }
+    ListHits { area, rows }
 }
 
 fn draw_preview(f: &mut Frame, app: &App, area: Rect) {
@@ -964,7 +1028,7 @@ mod tests {
 
         let backend = TestBackend::new(70, 8);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &app)).unwrap();
+        terminal.draw(|f| { draw(f, &app); }).unwrap();
 
         assert!(buffer_text(&terminal).contains("↑ v0.3.2 available · F5 update"));
         assert!(matches!(
@@ -1003,7 +1067,7 @@ mod tests {
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
         let text = buffer_text(&terminal);
         let buffer = terminal.backend().buffer();
 
@@ -1093,7 +1157,7 @@ mod tests {
 
         let backend = TestBackend::new(90, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
         let text = buffer_text(&terminal);
         let workspace_line = text.lines().find(|line| line.contains("● demo")).unwrap();
         let agent_line = text
@@ -1121,7 +1185,7 @@ mod tests {
 
         let backend = TestBackend::new(40, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
         let text = buffer_text(&terminal);
 
         assert!(text.contains(" ▾ agent "));
@@ -1180,7 +1244,7 @@ mod tests {
 
         let backend = TestBackend::new(80, 30);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &app)).unwrap();
+        terminal.draw(|f| { draw(f, &app); }).unwrap();
         let text = buffer_text(&terminal);
         assert!(text.contains(" Keybindings "));
         assert!(text.contains("toggle preview"));
@@ -1230,13 +1294,72 @@ mod tests {
         app.config.picker.vim_mode = true;
         let backend = TestBackend::new(110, 20);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw(f, &app)).unwrap();
+        terminal.draw(|f| { draw(f, &app); }).unwrap();
         let text = buffer_text(&terminal);
 
         assert!(text.contains("j/k up/down"));
         assert!(text.contains("a agent"));
         assert!(text.contains("z zoxide"));
         assert!(!text.contains("k move up"));
+    }
+
+    #[test]
+    fn mouse_scroll_moves_selection_inside_results() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.filtered = vec![0, 1];
+        let hits = ListHits {
+            area: Rect::new(0, 3, 40, 10),
+            rows: vec![(4..5, 0), (5..6, 1)],
+        };
+
+        handle_mouse(
+            &mut app,
+            MouseEvent { kind: MouseEventKind::ScrollDown, column: 1, row: 4, modifiers: KeyModifiers::NONE },
+            &hits,
+        );
+        assert_eq!(app.selected, 1);
+
+        handle_mouse(
+            &mut app,
+            MouseEvent { kind: MouseEventKind::ScrollUp, column: 1, row: 4, modifiers: KeyModifiers::NONE },
+            &hits,
+        );
+        assert_eq!(app.selected, 0);
+    }
+
+    #[test]
+    fn mouse_click_selects_then_opens_result() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.filtered = vec![0, 1];
+        let hits = ListHits {
+            area: Rect::new(0, 3, 40, 10),
+            rows: vec![(4..5, 0), (5..6, 1)],
+        };
+        let click = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 1, row: 5, modifiers: KeyModifiers::NONE };
+
+        assert!(matches!(handle_mouse(&mut app, click, &hits), Action::Continue));
+        assert_eq!(app.selected, 1);
+        assert!(matches!(handle_mouse(&mut app, click, &hits), Action::Open));
+    }
+
+    #[test]
+    fn mouse_ignores_input_outside_results() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.filtered = vec![0, 1];
+        let hits = ListHits {
+            area: Rect::new(0, 3, 40, 10),
+            rows: vec![(4..5, 0), (5..6, 1)],
+        };
+
+        handle_mouse(
+            &mut app,
+            MouseEvent { kind: MouseEventKind::ScrollDown, column: 50, row: 4, modifiers: KeyModifiers::NONE },
+            &hits,
+        );
+        assert_eq!(app.selected, 0);
     }
 
     #[test]
