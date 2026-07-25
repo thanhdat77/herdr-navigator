@@ -143,6 +143,10 @@ fn agents_from_json(
                 .get("terminal_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or(pane);
+            // `herdr agent <target>` resolves unique agent names and pane ids only — a
+            // terminal id is rejected with agent_not_found, so it stays searchable but
+            // never becomes the focus target.
+            let target = if pane.is_empty() { term } else { pane };
             let cwd = p.get("cwd").and_then(|v| v.as_str()).unwrap_or("/");
             let foreground_cwd = p
                 .get("foreground_cwd")
@@ -189,10 +193,10 @@ fn agents_from_json(
                 path,
                 workspace_id: (!workspace_id.is_empty()).then(|| workspace_id.into()),
                 workspace_label: Some(workspace_label.into()),
-                agent_target: Some(term.into()),
+                agent_target: Some(target.into()),
                 project: None,
                 action: EntryAction::FocusAgent {
-                    target: term.into(),
+                    target: target.into(),
                 },
                 source_label: None,
                 search_terms,
@@ -333,7 +337,14 @@ mod tests {
              "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
         let agents = agents_from_json(&agent_json, &entries, &[]);
         assert_eq!(agents.len(), 1);
-        assert_eq!(agents[0].agent_target.as_deref(), Some("term_1"));
+        // Focus must target the pane id: `herdr agent focus term_1` fails with agent_not_found.
+        assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
+        assert!(matches!(
+            &agents[0].action,
+            EntryAction::FocusAgent { target } if target == "w43:p1"
+        ));
+        // The terminal id is still typeable in the picker, just not the focus target.
+        assert!(agents[0].search_terms.contains(&"term_1".to_string()));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
         assert!(agents[0].subtitle.starts_with("working"));
     }
