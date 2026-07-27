@@ -143,6 +143,8 @@ fn agents_from_json(
                 .get("terminal_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or(pane);
+            // herdr resolves agent targets by pane id only; terminal ids give agent_not_found.
+            let focus_target = if pane.is_empty() { term } else { pane };
             let cwd = p.get("cwd").and_then(|v| v.as_str()).unwrap_or("/");
             let foreground_cwd = p
                 .get("foreground_cwd")
@@ -189,10 +191,10 @@ fn agents_from_json(
                 path,
                 workspace_id: (!workspace_id.is_empty()).then(|| workspace_id.into()),
                 workspace_label: Some(workspace_label.into()),
-                agent_target: Some(term.into()),
+                agent_target: Some(focus_target.into()),
                 project: None,
                 action: EntryAction::FocusAgent {
-                    target: term.into(),
+                    target: focus_target.into(),
                 },
                 source_label: None,
                 search_terms,
@@ -333,7 +335,7 @@ mod tests {
              "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
         let agents = agents_from_json(&agent_json, &entries, &[]);
         assert_eq!(agents.len(), 1);
-        assert_eq!(agents[0].agent_target.as_deref(), Some("term_1"));
+        assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
         assert!(agents[0].subtitle.starts_with("working"));
     }
