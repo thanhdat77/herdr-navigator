@@ -875,6 +875,7 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::sync::OnceLock;
 
     use crossterm::event::KeyModifiers;
     use ratatui::backend::TestBackend;
@@ -892,6 +893,7 @@ mod tests {
             title: title.into(),
             subtitle: String::new(),
             path: PathBuf::from(title),
+            path_key: OnceLock::new(),
             workspace_id: None,
             workspace_label: None,
             agent_target: None,

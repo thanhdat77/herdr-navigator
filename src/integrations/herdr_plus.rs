@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 use serde_json::Value;
@@ -31,6 +32,7 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
             title: project.name.clone(),
             subtitle: project.description.clone(),
             path: p,
+            path_key: OnceLock::new(),
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
@@ -74,6 +76,7 @@ pub(crate) fn quick_actions_entry() -> Entry {
         title: "Herdr Plus Quick Actions".into(),
         subtitle: "open the Herdr Plus quick-action picker".into(),
         path: env::current_dir().unwrap_or_else(|_| home()),
+        path_key: OnceLock::new(),
         workspace_id: None,
         workspace_label: None,
         agent_target: None,

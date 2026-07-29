@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, process::Command};
+use std::{env, path::PathBuf, process::Command, sync::OnceLock};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -84,6 +84,7 @@ fn local_session_entry(session: ListedSession) -> Entry {
         title: session.name.clone(),
         subtitle,
         path,
+        path_key: OnceLock::new(),
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
@@ -107,6 +108,7 @@ fn manual_session_entry(config: &SessionEntryConfig) -> Entry {
         title: config.name.clone(),
         subtitle: format!("local session · {session}"),
         path,
+        path_key: OnceLock::new(),
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
@@ -129,6 +131,7 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
         title: config.name.clone(),
         subtitle: format!("remote Herdr · {target}"),
         path: PathBuf::from(format!("remote:{target}")),
+        path_key: OnceLock::new(),
         workspace_id: None,
         workspace_label: None,
         agent_target: None,

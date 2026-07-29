@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- Cache canonical entry paths so filtering and rendering stay responsive on slow filesystems such as WSL-mounted Windows drives.
+
 ## [0.3.4] - 2026-07-29
 
 ### Added

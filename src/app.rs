@@ -447,7 +447,7 @@ impl App {
 
     pub(crate) fn workspaces_for_entry(&self, e: &Entry) -> &[WorkspaceRef] {
         self.path_to_workspaces
-            .get(&e.key())
+            .get(e.key())
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -459,7 +459,7 @@ impl App {
     }
 
     pub(crate) fn matching_dir_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
-        self.matching_dir_workspace_by_key(&e.key())
+        self.matching_dir_workspace_by_key(e.key())
     }
 
     fn matching_dir_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
@@ -797,6 +797,7 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
 mod tests {
     use std::{
         path::PathBuf,
+        sync::OnceLock,
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -809,6 +810,7 @@ mod tests {
             title: title.into(),
             subtitle: String::new(),
             path: PathBuf::from(path),
+            path_key: OnceLock::new(),
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
@@ -840,6 +842,7 @@ mod tests {
             title: "claude · Dotfiles · dotfiles".into(),
             subtitle: format!("{status} · wF:p2 · wF:t2"),
             path: PathBuf::from("/home/fenix/dotfiles"),
+            path_key: OnceLock::new(),
             workspace_id: Some("wF".into()),
             workspace_label: Some("Dotfiles".into()),
             agent_target: Some("term_1".into()),

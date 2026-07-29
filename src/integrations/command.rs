@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{process::Command, sync::OnceLock};
 
 use serde::Deserialize;
 
@@ -68,6 +68,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
         title: item.title,
         subtitle,
         path,
+        path_key: OnceLock::new(),
         workspace_id: None,
         workspace_label: None,
         agent_target: None,

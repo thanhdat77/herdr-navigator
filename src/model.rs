@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -114,6 +114,7 @@ pub(crate) struct Entry {
     pub(crate) title: String,
     pub(crate) subtitle: String,
     pub(crate) path: PathBuf,
+    pub(crate) path_key: OnceLock<String>,
     pub(crate) workspace_id: Option<String>,
     pub(crate) workspace_label: Option<String>,
     pub(crate) agent_target: Option<String>,
@@ -124,8 +125,10 @@ pub(crate) struct Entry {
 }
 
 impl Entry {
-    pub(crate) fn key(&self) -> String {
-        canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
+    pub(crate) fn key(&self) -> &str {
+        self.path_key.get_or_init(|| {
+            canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
+        })
     }
 
     pub(crate) fn source_name(&self) -> &str {
@@ -145,6 +148,66 @@ impl Entry {
             self.search_terms.join(" ")
         )
         .to_lowercase()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        fs,
+        os::unix::fs::symlink,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn test_path(name: &str) -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("herdr-entry-{name}-{suffix}"))
+    }
+
+    fn entry(path: PathBuf) -> Entry {
+        Entry {
+            source: Source::Root,
+            title: "cached".into(),
+            subtitle: String::new(),
+            path,
+            path_key: OnceLock::new(),
+            workspace_id: None,
+            workspace_label: None,
+            agent_target: None,
+            project: None,
+            action: EntryAction::FocusOrCreateDir,
+            source_label: None,
+            search_terms: vec![],
+        }
+    }
+
+    #[test]
+    fn path_key_is_cached_after_first_filesystem_lookup() {
+        let path = test_path("key");
+        fs::create_dir(&path).unwrap();
+        let entry = entry(path.clone());
+
+        let first = entry.key().to_string();
+        fs::remove_dir(&path).unwrap();
+
+        assert_eq!(entry.key(), first);
+    }
+
+    #[test]
+    fn path_key_preserves_symlink_resolution() {
+        let target = test_path("target");
+        let link = test_path("link");
+        fs::create_dir(&target).unwrap();
+        symlink(&target, &link).unwrap();
+
+        assert_eq!(entry(link.clone()).key(), entry(target.clone()).key());
+
+        fs::remove_file(link).unwrap();
+        fs::remove_dir(target).unwrap();
     }
 }
 
