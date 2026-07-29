@@ -136,6 +136,10 @@ pub(crate) struct IntegrationConfig {
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct ThemeConfig {
+    #[serde(default)]
+    pub(crate) name: Option<String>,
+    #[serde(default)]
+    pub(crate) custom: HashMap<String, String>,
     #[serde(default = "yes")]
     pub(crate) inherit_herdr: bool,
 }
@@ -349,6 +353,8 @@ impl Default for NotificationsConfig {
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
+            name: None,
+            custom: HashMap::new(),
             inherit_herdr: true,
         }
     }

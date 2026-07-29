@@ -106,9 +106,15 @@ sessions = true
 herdr_plus_quick_actions = true
 
 [theme]
-# Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.
-# Falls back to the built-in One Light palette.
+# Theme name. Takes precedence over inherit_herdr. If unset and inherit_herdr
+# is true, use the theme from Herdr's main config. Otherwise use One Light.
+# name = "dracula"
 inherit_herdr = true
+
+# Same [theme.custom] tokens as Herdr's main config. Applied on top of the
+# theme above, after any [theme.custom] inherited from Herdr's main config.
+# [theme.custom]
+# accent = "#ff00ff"
 
 # Keep roots short; zoxide should handle most frequent directories.
 [[roots]]

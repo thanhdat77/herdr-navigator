@@ -257,7 +257,7 @@ Useful config surfaces:
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
 - `[sessions]` controls local sessions and manual remote targets.
-- `[theme]` inherits supported Herdr themes and custom tokens.
+- `[theme]` sets the palette via `name`, inherits the Herdr theme when `inherit_herdr` is set, and layers `[theme.custom]` color tokens over the base (overriding any inherited from the main Herdr config).
 - `[[integrations]]` adds external command/JSON sources.
 
 ## Add your own source

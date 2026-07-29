@@ -891,7 +891,7 @@ mod tests {
 
     #[test]
     fn default_empty_picker_prioritizes_agent_status() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.config.picker.agent_sort = "priority".into();
         app.entries = vec![
             agent_entry_with_status("idle"),
@@ -905,7 +905,7 @@ mod tests {
 
     #[test]
     fn previous_workspace_is_pinned_only_on_initial_unfiltered_view() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut alpha = entry(Source::Workspace, "/alpha", "alpha");
         alpha.workspace_id = Some("w1".into());
         alpha.action = EntryAction::FocusWorkspace { id: "w1".into() };
@@ -939,7 +939,7 @@ mod tests {
 
     #[test]
     fn pinned_entries_sort_first_and_persist() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.entries = vec![
             entry(Source::Root, "/alpha", "alpha"),
             entry(Source::Root, "/zulu", "zulu"),
@@ -962,7 +962,7 @@ mod tests {
 
     #[test]
     fn previous_workspace_sorts_before_marked_entries() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let marked = entry(Source::Root, "/marked", "marked");
         let mut previous = entry(Source::Workspace, "/previous", "previous");
         previous.workspace_id = Some("w2".into());
@@ -981,9 +981,9 @@ mod tests {
 
     #[test]
     fn source_specific_reuse_distinguishes_same_path_workspaces() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.path_to_workspaces.insert(
-            "/tmp".into(),
+            entry(Source::Zoxide, "/tmp", "tmp").key(),
             vec![
                 workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
                 workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
@@ -1007,7 +1007,7 @@ mod tests {
     fn offers_directory_template_for_new_and_existing_directory_workspaces() {
         let mut config = Config::default();
         config.picker.directory_template = Some("default.toml".into());
-        let mut app = App::new(config, Theme::load(false));
+        let mut app = App::new(config, Theme::load(None, None, false));
         app.entries = vec![entry(Source::Zoxide, "/tmp", "tmp")];
         app.apply_filter();
 
@@ -1039,9 +1039,9 @@ mod tests {
 
     #[test]
     fn close_target_matches_entry_kind() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.path_to_workspaces.insert(
-            "/tmp".into(),
+            entry(Source::Root, "/tmp", "tmp").key(),
             vec![
                 workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
                 workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),

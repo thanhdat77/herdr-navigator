@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
 };
@@ -406,37 +407,35 @@ impl Theme {
         }
     }
 
-    pub(crate) fn load(inherit: bool) -> Self {
-        if !inherit {
-            return Self::one_light();
+    pub(crate) fn load(
+        name: Option<&str>,
+        custom: Option<&HashMap<String, String>>,
+        inherit: bool,
+    ) -> Self {
+        let herdr = inherit.then(read_herdr_config).flatten();
+
+        let herdr_name = herdr.as_ref().and_then(herdr_theme_name);
+        let mut theme = name
+            .or(herdr_name.as_deref())
+            .and_then(Self::from_name)
+            .unwrap_or_else(Self::one_light);
+
+        if let Some(herdr_custom) = herdr.as_ref().and_then(herdr_theme_custom) {
+            theme.apply_custom(herdr_custom);
         }
-        let path = herdr_config_path();
-        let Ok(s) = fs::read_to_string(path) else {
-            return Self::one_light();
-        };
-        let Ok(v) = s.parse::<toml::Value>() else {
-            return Self::one_light();
-        };
-        Self::from_herdr_config(&v)
+        if let Some(custom) = custom {
+            theme.apply_custom_map(custom);
+        }
+        theme
     }
 
+    #[cfg(test)]
     fn from_herdr_config(v: &toml::Value) -> Self {
-        let mut theme = Self::one_light();
-        if let Some(name) = v
-            .get("theme")
-            .and_then(|x| x.as_table())
-            .and_then(|x| x.get("name"))
-            .and_then(|x| x.as_str())
+        let mut theme = herdr_theme_name(v)
+            .as_deref()
             .and_then(Self::from_name)
-        {
-            theme = name;
-        }
-        if let Some(custom) = v
-            .get("theme")
-            .and_then(|x| x.as_table())
-            .and_then(|x| x.get("custom"))
-            .and_then(|x| x.as_table())
-        {
+            .unwrap_or_else(Self::one_light);
+        if let Some(custom) = herdr_theme_custom(v) {
             theme.apply_custom(custom);
         }
         theme
@@ -474,6 +473,14 @@ impl Theme {
         }
     }
 
+    fn apply_custom_map(&mut self, custom: &HashMap<String, String>) {
+        for (k, v) in custom {
+            if let Some(c) = parse_color(v) {
+                self.set(k, c);
+            }
+        }
+    }
+
     fn set(&mut self, key: &str, color: Color) {
         match key {
             "accent" => self.accent = color,
@@ -502,6 +509,27 @@ fn herdr_config_path() -> PathBuf {
         return Path::new(&xdg).join("herdr/config.toml");
     }
     home().join(".config/herdr/config.toml")
+}
+
+fn read_herdr_config() -> Option<toml::Value> {
+    fs::read_to_string(herdr_config_path())
+        .ok()
+        .and_then(|s| s.parse::<toml::Value>().ok())
+}
+
+fn herdr_theme_name(v: &toml::Value) -> Option<String> {
+    v.get("theme")
+        .and_then(|x| x.as_table())
+        .and_then(|x| x.get("name"))
+        .and_then(|x| x.as_str())
+        .map(str::to_owned)
+}
+
+fn herdr_theme_custom(v: &toml::Value) -> Option<&toml::map::Map<String, toml::Value>> {
+    v.get("theme")
+        .and_then(|x| x.as_table())
+        .and_then(|x| x.get("custom"))
+        .and_then(|x| x.as_table())
 }
 
 fn normalize_theme_name(name: &str) -> String {
@@ -636,5 +664,19 @@ mod tests {
         assert_eq!(theme.accent, rgb(1, 2, 3));
         assert_eq!(theme.green, Color::Blue);
         assert_eq!(theme.peach, Color::Reset);
+    }
+
+    #[test]
+    fn plugin_custom_map_overrides_base_palette() {
+        let mut theme = Theme::dracula();
+        let custom = HashMap::from([
+            ("accent".to_string(), "#ff00ff".to_string()),
+            ("panel_bg".to_string(), "reset".to_string()),
+        ]);
+        theme.apply_custom_map(&custom);
+
+        assert_eq!(theme.accent, rgb(255, 0, 255));
+        assert_eq!(theme.panel_bg, Color::Reset);
+        assert_eq!(theme.text, rgb(248, 248, 242));
     }
 }

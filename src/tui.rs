@@ -916,7 +916,7 @@ mod tests {
 
     #[test]
     fn herdr_plus_sources_share_color() {
-        let theme = Theme::load(false);
+        let theme = Theme::load(None, None, false);
         assert_eq!(
             source_color(&theme, &Source::Project),
             source_color(&theme, &Source::QuickAction)
@@ -927,7 +927,7 @@ mod tests {
     fn alt_enter_opens_selected_directory_with_configured_template() {
         let mut config = Config::default();
         config.picker.directory_template = Some("default.toml".into());
-        let mut app = App::new(config, Theme::load(false));
+        let mut app = App::new(config, Theme::load(None, None, false));
         app.entries = vec![entry(Source::Zoxide, "/tmp")];
         app.apply_filter();
 
@@ -952,7 +952,7 @@ mod tests {
 
     #[test]
     fn update_badge_renders_action_and_f5_triggers_it() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         assert!(matches!(
             handle_key(
                 &mut app,
@@ -978,7 +978,7 @@ mod tests {
 
     #[test]
     fn status_colors_match_herdr() {
-        let theme = Theme::load(false);
+        let theme = Theme::load(None, None, false);
 
         assert_eq!(agent_status_color(&theme, "blocked"), theme.red);
         assert_eq!(agent_status_color(&theme, "working"), theme.yellow);
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn open_and_pinned_workspaces_replace_tree_branches_with_diamonds() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut current = entry(Source::Workspace, "Current");
         current.workspace_id = Some("w1".into());
         current.search_terms.push("focused".into());
@@ -1022,7 +1022,7 @@ mod tests {
 
     #[test]
     fn current_workspace_marker_wins_over_stale_pin() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut current = entry(Source::Workspace, "Current");
         current.workspace_id = Some("w1".into());
         current.search_terms.push("focused".into());
@@ -1036,7 +1036,7 @@ mod tests {
 
     #[test]
     fn marked_entry_uses_a_yellow_diamond() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let marked = entry(Source::Root, "Marked");
         app.pinned_entries.insert("root:Marked".into());
 
@@ -1048,7 +1048,7 @@ mod tests {
 
     #[test]
     fn mark_marker_wins_over_previous_workspace() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut previous = entry(Source::Workspace, "Previous");
         previous.workspace_id = Some("w2".into());
         previous.action = EntryAction::FocusWorkspace { id: "w2".into() };
@@ -1063,7 +1063,7 @@ mod tests {
 
     #[test]
     fn mark_marker_wins_over_current_workspace() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut current = entry(Source::Workspace, "Current");
         current.workspace_id = Some("w1".into());
         current.action = EntryAction::FocusWorkspace { id: "w1".into() };
@@ -1078,7 +1078,7 @@ mod tests {
 
     #[test]
     fn detailed_rows_only_expand_directory_sources() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         let mut workspace = entry(Source::Workspace, "dir: demo");
         workspace.path = PathBuf::from("/work/demo");
         workspace.subtitle = "agent:blocked · w1 tabs:2 panes:3".into();
@@ -1110,7 +1110,7 @@ mod tests {
 
     #[test]
     fn list_renders_source_groups_as_a_tree() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.entries = vec![
             entry(Source::Agent, "Claude"),
             entry(Source::Agent, "Codex"),
@@ -1139,7 +1139,7 @@ mod tests {
 
     #[test]
     fn vim_mode_uses_normal_keys_then_searches_with_slash() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.config.picker.vim_mode = true;
         handle_key(&mut app, key(KeyCode::Char('j')));
         assert!(app.query.is_empty());
@@ -1160,7 +1160,7 @@ mod tests {
 
     #[test]
     fn vim_filter_search_starts_search_after_source_key() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.config.picker.vim_mode = true;
         app.config.picker.vim_filter_search = true;
 
@@ -1174,7 +1174,7 @@ mod tests {
 
     #[test]
     fn question_mark_toggles_registry_help_overlay() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         handle_key(&mut app, key(KeyCode::Char('?')));
         assert_eq!(app.input_mode, InputMode::Help);
 
@@ -1193,7 +1193,7 @@ mod tests {
 
     #[test]
     fn registry_reports_active_toggle_state() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.preview = true;
         let preview = keybindings(&app)
             .into_iter()
@@ -1205,7 +1205,7 @@ mod tests {
 
     #[test]
     fn registry_maps_ctrl_b_to_mark_without_stealing_enter() {
-        let app = App::new(Config::default(), Theme::load(false));
+        let app = App::new(Config::default(), Theme::load(None, None, false));
         let mark = keybindings(&app)
             .into_iter()
             .find(|binding| binding.command == Command::ToggleMark)
@@ -1226,7 +1226,7 @@ mod tests {
 
     #[test]
     fn compact_footer_groups_movement_and_lists_filters() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.config.picker.vim_mode = true;
         let backend = TestBackend::new(110, 20);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1241,7 +1241,7 @@ mod tests {
 
     #[test]
     fn input_modes_transition_exclusively() {
-        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
         app.config.picker.vim_mode = true;
         app.config.picker.vim_filter_search = true;
         assert_eq!(app.input_mode, InputMode::Normal);
