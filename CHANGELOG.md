@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- `Ctrl-Backspace` deletes the last word of the query.
+
+### Fixed
+- Unbound `Ctrl`/`Alt` chords no longer insert their letter into the query; `Ctrl-Backspace` typed an `h` because terminals send it as `Ctrl-H`.
+
 ## [0.3.4] - 2026-07-29
 
 ### Added

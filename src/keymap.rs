@@ -16,6 +16,7 @@ pub(crate) enum Command {
     StartSearch,
     CycleFilter,
     DeleteChar,
+    DeleteWord,
     Clear,
     CloseWorkspace,
     ToggleMark,
@@ -255,6 +256,19 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
             Command::DeleteChar,
             vec![key(KeyCode::Backspace, KeyModifiers::NONE, "⌫")],
             "delete query character",
+            "Actions",
+            None,
+        ),
+        binding(
+            Command::DeleteWord,
+            vec![
+                // Terminals send Ctrl-Backspace as 0x08, which crossterm decodes
+                // as Ctrl-H. Under the kitty keyboard protocol it arrives as a
+                // real Ctrl-Backspace instead, so accept both spellings.
+                key(KeyCode::Backspace, KeyModifiers::CONTROL, "⌃⌫"),
+                key(KeyCode::Char('h'), KeyModifiers::CONTROL, "⌃⌫"),
+            ],
+            "delete query word",
             "Actions",
             None,
         ),
