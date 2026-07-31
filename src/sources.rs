@@ -3,6 +3,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
+    sync::OnceLock,
 };
 
 use serde_json::Value;
@@ -94,6 +95,7 @@ fn workspaces_from_json(
                 action: EntryAction::FocusWorkspace { id: id.into() },
                 source_label: None,
                 search_terms,
+                canonical: OnceLock::new(),
             });
         }
     }
@@ -194,6 +196,7 @@ fn agents_from_json(
                 },
                 source_label: None,
                 search_terms,
+                canonical: OnceLock::new(),
             });
         }
     }
@@ -263,6 +266,7 @@ pub(crate) fn collect_zoxide() -> Vec<Entry> {
                 action: EntryAction::FocusOrCreateDir,
                 source_label: None,
                 search_terms: vec![],
+                canonical: OnceLock::new(),
             }
         })
         .collect()
@@ -295,6 +299,7 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            canonical: OnceLock::new(),
         });
     }
     if let Ok(read) = fs::read_dir(path) {

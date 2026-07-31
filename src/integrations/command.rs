@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{process::Command, sync::OnceLock};
 
 use serde::Deserialize;
 
@@ -80,6 +80,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
         source_label: (!matches!(kind.as_str(), "server" | "remote-terminal" | "session"))
             .then(|| integration.label.clone()),
         search_terms: vec![id, kind],
+        canonical: OnceLock::new(),
     }
 }
 

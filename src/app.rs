@@ -8,12 +8,21 @@ use crate::{
     config::Config,
     herdr::{herdr_json, notify_done, notify_error, run_herdr},
     integrations::{command, herdr_plus, sessions},
-    matcher::match_score,
+    matcher::Scorer,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
     paths::{canonical_str, herdr_plus_quick_actions_dir, home, plugin_config_dir},
     sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
 };
+
+/// One entry that survived filtering, with its sort keys already resolved.
+struct Candidate {
+    previous_pinned: bool,
+    user_pinned: bool,
+    score: i64,
+    source_rank: usize,
+    idx: usize,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InputMode {
@@ -134,7 +143,11 @@ impl App {
             && self.config.jump_back.pin_previous
             && self.query.trim().is_empty()
             && self.source_filter.is_none();
-        let mut scored = Vec::new();
+        // Everything the comparator needs is resolved here, once per candidate.
+        // Deriving it inside `sort_by` instead costs O(n log n) pin lookups, and
+        // a pin lookup canonicalizes a path.
+        let mut scorer = Scorer::new(&self.config.picker.engine, &query.plain);
+        let mut scored: Vec<Candidate> = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
                 if &e.source != sf {
@@ -144,46 +157,41 @@ impl App {
             if !query.filters_match(e) {
                 continue;
             }
-            let hay = e.haystack();
             let bonus = self.config.picker.source_bonus(&e.source)
                 + query.score_bonus(e, use_agent_priority);
-            if query.plain.is_empty() {
-                scored.push((bonus, idx));
-            } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &query.plain)
-            {
-                scored.push((score + bonus, idx));
-            }
+            let score = if query.plain.is_empty() {
+                bonus
+            } else if let Some(score) = scorer.score(&e.haystack()) {
+                score + bonus
+            } else {
+                continue;
+            };
+            scored.push(Candidate {
+                previous_pinned: pin_previous
+                    && e.source == Source::Workspace
+                    && e.workspace_id.as_deref() == self.previous_workspace_id.as_deref(),
+                user_pinned: self.is_pinned(e),
+                score,
+                source_rank: self.config.picker.source_rank(&e.source),
+                idx,
+            });
         }
-        scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
-            let user_pinned_a = self.is_pinned(&self.entries[*idx_a]);
-            let user_pinned_b = self.is_pinned(&self.entries[*idx_b]);
-            let previous_pinned_a = pin_previous
-                && self.entries[*idx_a].source == Source::Workspace
-                && self.entries[*idx_a].workspace_id.as_deref()
-                    == self.previous_workspace_id.as_deref();
-            let previous_pinned_b = pin_previous
-                && self.entries[*idx_b].source == Source::Workspace
-                && self.entries[*idx_b].workspace_id.as_deref()
-                    == self.previous_workspace_id.as_deref();
-            previous_pinned_b
-                .cmp(&previous_pinned_a)
-                .then_with(|| user_pinned_b.cmp(&user_pinned_a))
-                .then_with(|| score_b.cmp(score_a))
-                .then_with(|| {
-                    self.config
-                        .picker
-                        .source_rank(&self.entries[*idx_a].source)
-                        .cmp(&self.config.picker.source_rank(&self.entries[*idx_b].source))
-                })
+        scored.sort_by(|a, b| {
+            b.previous_pinned
+                .cmp(&a.previous_pinned)
+                .then_with(|| b.user_pinned.cmp(&a.user_pinned))
+                .then_with(|| b.score.cmp(&a.score))
+                .then_with(|| a.source_rank.cmp(&b.source_rank))
                 .then_with(|| {
                     if agent_view {
-                        idx_a.cmp(idx_b)
+                        a.idx.cmp(&b.idx)
                     } else {
-                        self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title)
+                        self.entries[a.idx].title.cmp(&self.entries[b.idx].title)
                     }
                 })
         });
-        let (scores, filtered): (Vec<_>, Vec<_>) = scored.into_iter().unzip();
+        let (scores, filtered): (Vec<_>, Vec<_>) =
+            scored.into_iter().map(|c| (c.score, c.idx)).unzip();
         self.filtered = filtered;
         self.filtered_scores = scores;
         self.selected = 0;
@@ -447,7 +455,7 @@ impl App {
 
     pub(crate) fn workspaces_for_entry(&self, e: &Entry) -> &[WorkspaceRef] {
         self.path_to_workspaces
-            .get(&e.key())
+            .get(e.key())
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -459,7 +467,7 @@ impl App {
     }
 
     pub(crate) fn matching_dir_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
-        self.matching_dir_workspace_by_key(&e.key())
+        self.matching_dir_workspace_by_key(e.key())
     }
 
     fn matching_dir_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
@@ -797,6 +805,7 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
 mod tests {
     use std::{
         path::PathBuf,
+        sync::OnceLock,
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -816,6 +825,7 @@ mod tests {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            canonical: OnceLock::new(),
         }
     }
 
@@ -849,6 +859,7 @@ mod tests {
             },
             source_label: None,
             search_terms: vec!["main ai dot".into()],
+            canonical: OnceLock::new(),
         }
     }
 

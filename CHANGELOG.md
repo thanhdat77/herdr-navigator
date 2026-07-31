@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- Keep typing responsive on large indexes by resolving each entry's canonical path once instead of on every sort comparison, and by building the fuzzy matcher once per query instead of once per candidate ([#22](https://github.com/thanhdat77/herdr-navigator/issues/22)).
+
 ## [0.3.4] - 2026-07-29
 
 ### Added
