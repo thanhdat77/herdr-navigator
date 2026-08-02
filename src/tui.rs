@@ -7,7 +7,7 @@ use std::{
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        MouseButton, MouseEvent, MouseEventKind,
+        KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -124,7 +124,11 @@ pub(crate) fn tui_loop(
 
 fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), DisableMouseCapture, LeaveAlternateScreen)?;
+    execute!(
+        terminal.backend_mut(),
+        DisableMouseCapture,
+        LeaveAlternateScreen
+    )?;
     terminal.show_cursor()?;
     Ok(())
 }
@@ -169,7 +173,11 @@ fn handle_mouse(app: &mut App, mouse: MouseEvent, hits: &ListHits) -> Action {
         MouseEventKind::ScrollUp => app.prev(),
         MouseEventKind::ScrollDown => app.next(),
         MouseEventKind::Down(MouseButton::Left) => {
-            let Some((_, row)) = hits.rows.iter().find(|(range, _)| range.contains(&mouse.row)) else {
+            let Some((_, row)) = hits
+                .rows
+                .iter()
+                .find(|(range, _)| range.contains(&mouse.row))
+            else {
                 return Action::Continue;
             };
             if app.selected == *row {
@@ -203,9 +211,14 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Action {
         return Action::Continue;
     }
 
+    // Only plain and shifted characters are text. Without this guard every
+    // unbound chord inserts its letter -- Ctrl-Backspace arrives as Ctrl-H on
+    // most terminals and used to type an "h".
     if let KeyCode::Char(c) = key.code {
-        app.query.push(c);
-        app.apply_filter();
+        if key.modifiers.difference(KeyModifiers::SHIFT).is_empty() {
+            app.query.push(c);
+            app.apply_filter();
+        }
     }
     Action::Continue
 }
@@ -243,6 +256,11 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
         }
         Command::DeleteChar => {
             app.query.pop();
+            app.apply_filter();
+            Action::Continue
+        }
+        Command::DeleteWord => {
+            app.delete_query_word();
             app.apply_filter();
             Action::Continue
         }
@@ -940,7 +958,6 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
 mod tests {
     use std::path::PathBuf;
 
-    use crossterm::event::KeyModifiers;
     use ratatui::backend::TestBackend;
 
     use super::*;
@@ -1028,7 +1045,11 @@ mod tests {
 
         let backend = TestBackend::new(70, 8);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw(f, &app); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw(f, &app);
+            })
+            .unwrap();
 
         assert!(buffer_text(&terminal).contains("↑ v0.3.2 available · F5 update"));
         assert!(matches!(
@@ -1067,7 +1088,11 @@ mod tests {
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw_list(f, &app, f.area());
+            })
+            .unwrap();
         let text = buffer_text(&terminal);
         let buffer = terminal.backend().buffer();
 
@@ -1157,7 +1182,11 @@ mod tests {
 
         let backend = TestBackend::new(90, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw_list(f, &app, f.area());
+            })
+            .unwrap();
         let text = buffer_text(&terminal);
         let workspace_line = text.lines().find(|line| line.contains("● demo")).unwrap();
         let agent_line = text
@@ -1185,7 +1214,11 @@ mod tests {
 
         let backend = TestBackend::new(40, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw_list(f, &app, f.area()); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw_list(f, &app, f.area());
+            })
+            .unwrap();
         let text = buffer_text(&terminal);
 
         assert!(text.contains(" ▾ agent "));
@@ -1199,6 +1232,78 @@ mod tests {
         )));
         assert!(text.contains(" ▾ root "));
         assert!(text.contains("  └─ Dotfiles"));
+    }
+
+    #[test]
+    fn modified_chords_never_insert_text() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+
+        // Ctrl-Backspace reaches the app as Ctrl-H on most terminals; it used to
+        // fall through and type an "h".
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::CONTROL),
+        );
+        assert_eq!(app.query, "");
+
+        // Any other unbound chord is inert too.
+        for code in ['d', 'f', 'k'] {
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Char(code), KeyModifiers::CONTROL),
+            );
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Char(code), KeyModifiers::ALT),
+            );
+        }
+        assert_eq!(app.query, "");
+
+        // Plain and shifted characters are still text.
+        handle_key(&mut app, key(KeyCode::Char('a')));
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('B'), KeyModifiers::SHIFT),
+        );
+        assert_eq!(app.query, "aB");
+    }
+
+    #[test]
+    fn ctrl_backspace_deletes_a_word_in_both_encodings() {
+        for chord in [
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::CONTROL),
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::CONTROL),
+        ] {
+            let mut app = App::new(Config::default(), Theme::load(false));
+            app.query = "foo bar".into();
+
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "foo ");
+
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "");
+
+            // Empty query stays empty rather than panicking.
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "");
+        }
+    }
+
+    #[test]
+    fn delete_word_handles_trailing_space_and_multibyte() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+
+        app.query = "foo bar  ".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "foo ");
+
+        app.query = "café naïve".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "café ");
+
+        app.query = "solo".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "");
     }
 
     #[test]
@@ -1244,7 +1349,11 @@ mod tests {
 
         let backend = TestBackend::new(80, 30);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw(f, &app); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw(f, &app);
+            })
+            .unwrap();
         let text = buffer_text(&terminal);
         assert!(text.contains(" Keybindings "));
         assert!(text.contains("toggle preview"));
@@ -1294,7 +1403,11 @@ mod tests {
         app.config.picker.vim_mode = true;
         let backend = TestBackend::new(110, 20);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| { draw(f, &app); }).unwrap();
+        terminal
+            .draw(|f| {
+                draw(f, &app);
+            })
+            .unwrap();
         let text = buffer_text(&terminal);
 
         assert!(text.contains("j/k up/down"));
@@ -1304,9 +1417,54 @@ mod tests {
     }
 
     #[test]
+    fn rendered_mouse_hits_follow_grouped_detailed_rows_after_scroll() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.detailed_rows = true;
+        app.entries = vec![
+            entry(Source::Zoxide, "/one"),
+            entry(Source::Zoxide, "/two"),
+            entry(Source::Root, "/three"),
+        ];
+        app.filtered = vec![0, 1, 2];
+        app.selected = 2;
+
+        let backend = TestBackend::new(50, 6);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut hits = ListHits::default();
+        terminal
+            .draw(|f| hits = draw_list(f, &app, f.area()))
+            .unwrap();
+        let lines: Vec<_> = buffer_text(&terminal).lines().map(str::to_owned).collect();
+        let detail_row = lines
+            .iter()
+            .position(|line| line.contains("/two"))
+            .expect("second detailed row should remain visible after scrolling")
+            as u16;
+
+        assert!(!lines.iter().any(|line| line.contains("/one")));
+        assert!(matches!(
+            handle_mouse(
+                &mut app,
+                MouseEvent {
+                    kind: MouseEventKind::Down(MouseButton::Left),
+                    column: 1,
+                    row: detail_row,
+                    modifiers: KeyModifiers::NONE,
+                },
+                &hits,
+            ),
+            Action::Continue
+        ));
+        assert_eq!(app.selected, 1);
+    }
+
+    #[test]
     fn mouse_scroll_moves_selection_inside_results() {
         let mut app = App::new(Config::default(), Theme::load(false));
-        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.entries = vec![
+            entry(Source::Workspace, "one"),
+            entry(Source::Workspace, "two"),
+        ];
         app.filtered = vec![0, 1];
         let hits = ListHits {
             area: Rect::new(0, 3, 40, 10),
@@ -1315,14 +1473,24 @@ mod tests {
 
         handle_mouse(
             &mut app,
-            MouseEvent { kind: MouseEventKind::ScrollDown, column: 1, row: 4, modifiers: KeyModifiers::NONE },
+            MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 1,
+                row: 4,
+                modifiers: KeyModifiers::NONE,
+            },
             &hits,
         );
         assert_eq!(app.selected, 1);
 
         handle_mouse(
             &mut app,
-            MouseEvent { kind: MouseEventKind::ScrollUp, column: 1, row: 4, modifiers: KeyModifiers::NONE },
+            MouseEvent {
+                kind: MouseEventKind::ScrollUp,
+                column: 1,
+                row: 4,
+                modifiers: KeyModifiers::NONE,
+            },
             &hits,
         );
         assert_eq!(app.selected, 0);
@@ -1331,15 +1499,26 @@ mod tests {
     #[test]
     fn mouse_click_selects_then_opens_result() {
         let mut app = App::new(Config::default(), Theme::load(false));
-        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.entries = vec![
+            entry(Source::Workspace, "one"),
+            entry(Source::Workspace, "two"),
+        ];
         app.filtered = vec![0, 1];
         let hits = ListHits {
             area: Rect::new(0, 3, 40, 10),
             rows: vec![(4..5, 0), (5..6, 1)],
         };
-        let click = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 1, row: 5, modifiers: KeyModifiers::NONE };
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 1,
+            row: 5,
+            modifiers: KeyModifiers::NONE,
+        };
 
-        assert!(matches!(handle_mouse(&mut app, click, &hits), Action::Continue));
+        assert!(matches!(
+            handle_mouse(&mut app, click, &hits),
+            Action::Continue
+        ));
         assert_eq!(app.selected, 1);
         assert!(matches!(handle_mouse(&mut app, click, &hits), Action::Open));
     }
@@ -1347,7 +1526,10 @@ mod tests {
     #[test]
     fn mouse_ignores_input_outside_results() {
         let mut app = App::new(Config::default(), Theme::load(false));
-        app.entries = vec![entry(Source::Workspace, "one"), entry(Source::Workspace, "two")];
+        app.entries = vec![
+            entry(Source::Workspace, "one"),
+            entry(Source::Workspace, "two"),
+        ];
         app.filtered = vec![0, 1];
         let hits = ListHits {
             area: Rect::new(0, 3, 40, 10),
@@ -1356,7 +1538,12 @@ mod tests {
 
         handle_mouse(
             &mut app,
-            MouseEvent { kind: MouseEventKind::ScrollDown, column: 50, row: 4, modifiers: KeyModifiers::NONE },
+            MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 50,
+                row: 4,
+                modifiers: KeyModifiers::NONE,
+            },
             &hits,
         );
         assert_eq!(app.selected, 0);

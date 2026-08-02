@@ -175,18 +175,24 @@ impl App {
                         .source_rank(&self.entries[*idx_a].source)
                         .cmp(&self.config.picker.source_rank(&self.entries[*idx_b].source))
                 })
-                .then_with(|| {
-                    if agent_view {
-                        idx_a.cmp(idx_b)
-                    } else {
-                        self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title)
-                    }
-                })
+                .then_with(|| idx_a.cmp(idx_b))
         });
         let (scores, filtered): (Vec<_>, Vec<_>) = scored.into_iter().unzip();
         self.filtered = filtered;
         self.filtered_scores = scores;
         self.selected = 0;
+    }
+
+    /// Drop the trailing word of the query, plus any whitespace before it.
+    pub(crate) fn delete_query_word(&mut self) {
+        let trimmed = self.query.trim_end();
+        let cut = trimmed
+            .char_indices()
+            .rev()
+            .find(|(_, c)| c.is_whitespace())
+            .map(|(idx, c)| idx + c.len_utf8())
+            .unwrap_or(0);
+        self.query.truncate(cut);
     }
 
     pub(crate) fn set_filter(&mut self, source: Option<Source>) {
@@ -935,6 +941,19 @@ mod tests {
             app.selected_entry().unwrap().workspace_id.as_deref(),
             Some("w1")
         );
+    }
+
+    #[test]
+    fn equal_score_ties_preserve_insertion_order() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![
+            entry(Source::Zoxide, "/zulu", "zulu"),
+            entry(Source::Zoxide, "/alpha", "alpha"),
+        ];
+
+        app.apply_filter();
+
+        assert_eq!(app.selected_entry().unwrap().title, "zulu");
     }
 
     #[test]

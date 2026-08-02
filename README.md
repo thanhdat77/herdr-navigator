@@ -132,6 +132,7 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Ctrl-B` | Mark or unmark the selected item |
 | `Ctrl-O` | Toggle preview |
 | `Ctrl-U` | Clear query and filter |
+| `Ctrl-Backspace` | Delete the last query word |
 | `?` | Show active keybindings |
 | `Esc` / `Ctrl-C` | Back or close |
 
