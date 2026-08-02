@@ -5,7 +5,7 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -161,9 +161,14 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Action {
         return Action::Continue;
     }
 
+    // Only plain and shifted characters are text. Without this guard every
+    // unbound chord inserts its letter -- Ctrl-Backspace arrives as Ctrl-H on
+    // most terminals and used to type an "h".
     if let KeyCode::Char(c) = key.code {
-        app.query.push(c);
-        app.apply_filter();
+        if key.modifiers.difference(KeyModifiers::SHIFT).is_empty() {
+            app.query.push(c);
+            app.apply_filter();
+        }
     }
     Action::Continue
 }
@@ -201,6 +206,11 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
         }
         Command::DeleteChar => {
             app.query.pop();
+            app.apply_filter();
+            Action::Continue
+        }
+        Command::DeleteWord => {
+            app.delete_query_word();
             app.apply_filter();
             Action::Continue
         }
@@ -876,7 +886,6 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
 mod tests {
     use std::path::PathBuf;
 
-    use crossterm::event::KeyModifiers;
     use ratatui::backend::TestBackend;
 
     use super::*;
@@ -1135,6 +1144,78 @@ mod tests {
         )));
         assert!(text.contains(" ▾ root "));
         assert!(text.contains("  └─ Dotfiles"));
+    }
+
+    #[test]
+    fn modified_chords_never_insert_text() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+
+        // Ctrl-Backspace reaches the app as Ctrl-H on most terminals; it used to
+        // fall through and type an "h".
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::CONTROL),
+        );
+        assert_eq!(app.query, "");
+
+        // Any other unbound chord is inert too.
+        for code in ['d', 'f', 'k'] {
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Char(code), KeyModifiers::CONTROL),
+            );
+            handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Char(code), KeyModifiers::ALT),
+            );
+        }
+        assert_eq!(app.query, "");
+
+        // Plain and shifted characters are still text.
+        handle_key(&mut app, key(KeyCode::Char('a')));
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('B'), KeyModifiers::SHIFT),
+        );
+        assert_eq!(app.query, "aB");
+    }
+
+    #[test]
+    fn ctrl_backspace_deletes_a_word_in_both_encodings() {
+        for chord in [
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::CONTROL),
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::CONTROL),
+        ] {
+            let mut app = App::new(Config::default(), Theme::load(false));
+            app.query = "foo bar".into();
+
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "foo ");
+
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "");
+
+            // Empty query stays empty rather than panicking.
+            handle_key(&mut app, chord);
+            assert_eq!(app.query, "");
+        }
+    }
+
+    #[test]
+    fn delete_word_handles_trailing_space_and_multibyte() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+
+        app.query = "foo bar  ".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "foo ");
+
+        app.query = "café naïve".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "café ");
+
+        app.query = "solo".into();
+        app.delete_query_word();
+        assert_eq!(app.query, "");
     }
 
     #[test]

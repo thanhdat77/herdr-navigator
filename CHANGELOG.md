@@ -5,11 +5,20 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `Ctrl-Backspace` deletes the last word of the query.
+
+### Fixed
+- Unbound `Ctrl`/`Alt` chords no longer insert their letter into the query; `Ctrl-Backspace` typed an `h` because terminals send it as `Ctrl-H`.
+- Equal-score results now keep their source order (zoxide frecency, agent pane order) instead of sorting alphabetically.
+
+## [0.3.4] - 2026-07-29
+
+### Added
 - Apply one reusable Herdr Plus tabs/panes template to any zoxide/root directory with a configurable shortcut (`Alt-Enter` by default), creating the workspace or appending fresh template tabs when already open; `Enter` keeps normal behavior.
 - Press `F5` on the update badge to confirm and install the available release through Herdr.
 
 ### Fixed
-- Equal-score results now keep their source order (zoxide frecency, agent pane order) instead of sorting alphabetically.
+- Focus agent rows by Herdr pane ID, which `herdr agent focus` accepts, instead of unsupported terminal IDs ([#13](https://github.com/thanhdat77/herdr-navigator/issues/13), [#18](https://github.com/thanhdat77/herdr-navigator/issues/18)).
 
 ## [0.3.3] - 2026-07-18
 

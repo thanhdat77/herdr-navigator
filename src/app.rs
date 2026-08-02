@@ -183,6 +183,18 @@ impl App {
         self.selected = 0;
     }
 
+    /// Drop the trailing word of the query, plus any whitespace before it.
+    pub(crate) fn delete_query_word(&mut self) {
+        let trimmed = self.query.trim_end();
+        let cut = trimmed
+            .char_indices()
+            .rev()
+            .find(|(_, c)| c.is_whitespace())
+            .map(|(idx, c)| idx + c.len_utf8())
+            .unwrap_or(0);
+        self.query.truncate(cut);
+    }
+
     pub(crate) fn set_filter(&mut self, source: Option<Source>) {
         self.source_filter = if self.source_filter == source {
             None
