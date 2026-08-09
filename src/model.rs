@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -121,11 +121,16 @@ pub(crate) struct Entry {
     pub(crate) action: EntryAction,
     pub(crate) source_label: Option<String>,
     pub(crate) search_terms: Vec<String>,
+    /// Lazily resolved `key()`. `canonicalize` is a syscall and `key()` sits on
+    /// hot paths (filtering, sorting, pin lookups, rendering), so resolve once.
+    pub(crate) canonical: OnceLock<String>,
 }
 
 impl Entry {
-    pub(crate) fn key(&self) -> String {
-        canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
+    pub(crate) fn key(&self) -> &str {
+        self.canonical.get_or_init(|| {
+            canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
+        })
     }
 
     pub(crate) fn source_name(&self) -> &str {
@@ -195,5 +200,71 @@ impl ProjectTab {
                 pane
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, fs};
+
+    fn dir_entry(path: PathBuf) -> Entry {
+        Entry {
+            source: Source::Zoxide,
+            title: String::new(),
+            subtitle: String::new(),
+            path,
+            workspace_id: None,
+            workspace_label: None,
+            agent_target: None,
+            project: None,
+            action: EntryAction::FocusOrCreateDir,
+            source_label: None,
+            search_terms: vec![],
+            canonical: OnceLock::new(),
+        }
+    }
+
+    #[test]
+    fn key_resolves_once_and_is_stable() {
+        let dir = env::temp_dir().join(format!("herdr-nav-key-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let entry = dir_entry(dir.clone());
+
+        let first = entry.key();
+        let second = entry.key();
+        assert_eq!(first, second);
+        // Same backing allocation: the second call reused the cache instead of
+        // canonicalizing again.
+        assert!(std::ptr::eq(first, second));
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn key_still_resolves_symlinks() {
+        let dir = env::temp_dir().join(format!("herdr-nav-link-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("target");
+        fs::create_dir_all(&target).unwrap();
+        let link = dir.join("link");
+
+        #[cfg(unix)]
+        {
+            let _ = fs::remove_file(&link);
+            std::os::unix::fs::symlink(&target, &link).unwrap();
+            assert_eq!(dir_entry(link).key(), dir_entry(target).key());
+        }
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn key_falls_back_to_display_for_missing_paths() {
+        let missing = PathBuf::from("/herdr-navigator/does/not/exist");
+        assert_eq!(
+            dir_entry(missing.clone()).key(),
+            missing.display().to_string()
+        );
     }
 }

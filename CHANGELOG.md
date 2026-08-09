@@ -6,6 +6,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 - Agent terminal IDs remain searchable while focus actions continue to target pane IDs.
+- Keep typing responsive on large indexes by resolving each entry's canonical path once instead of on every sort comparison, and by building the fuzzy matcher once per query instead of once per candidate ([#22](https://github.com/thanhdat77/herdr-navigator/issues/22)).
 
 ## [0.3.5] - 2026-08-02
 

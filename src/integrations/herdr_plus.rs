@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 use serde_json::Value;
@@ -38,6 +39,7 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
             action: EntryAction::OpenProject,
             source_label: None,
             search_terms: vec![],
+            canonical: OnceLock::new(),
         });
     }
     out
@@ -83,6 +85,7 @@ pub(crate) fn quick_actions_entry() -> Entry {
         },
         source_label: None,
         search_terms: vec![],
+        canonical: OnceLock::new(),
     }
 }
 
