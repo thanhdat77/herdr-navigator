@@ -1,17 +1,14 @@
 use std::{
-    fs,
     process::Command,
     sync::mpsc::{self, Receiver},
     thread,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{herdr::run_herdr, paths::plugin_config_dir};
+use crate::herdr::run_herdr;
 
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const PLUGIN_SOURCE: &str = "thanhdat77/herdr-navigator";
 const RELEASE_REPO: &str = "https://github.com/thanhdat77/herdr-navigator.git";
-const CACHE_SECONDS: u64 = 86_400;
 
 pub(crate) fn check_in_background() -> Receiver<Option<String>> {
     let (sender, receiver) = mpsc::channel();
@@ -22,23 +19,15 @@ pub(crate) fn check_in_background() -> Receiver<Option<String>> {
 }
 
 fn check_for_update() -> Option<String> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    let cache_path = plugin_config_dir().join("update-check");
-    if let Ok(cache) = fs::read_to_string(&cache_path) {
-        if let Some(latest) = fresh_cached_release(&cache, now) {
-            return newer_version(CURRENT_VERSION, &latest);
-        }
-    }
-
-    let latest = fetch_latest_release().unwrap_or_else(|| CURRENT_VERSION.to_string());
-    let _ = fs::create_dir_all(plugin_config_dir());
-    let _ = fs::write(cache_path, format!("{now}\n{latest}\n"));
+    let latest = fetch_latest_release()?;
     newer_version(CURRENT_VERSION, &latest)
 }
 
-pub(crate) fn install(version: &str) -> Result<(), String> {
+pub(crate) fn install() -> Result<String, String> {
+    let version = fetch_latest_release()
+        .ok_or_else(|| "could not determine the latest Herdr Navigator release".to_string())?;
     let release =
-        release_ref(version).ok_or_else(|| format!("invalid release version: {version}"))?;
+        release_ref(&version).ok_or_else(|| format!("invalid release version: {version}"))?;
     run_herdr([
         "plugin",
         "install",
@@ -46,7 +35,8 @@ pub(crate) fn install(version: &str) -> Result<(), String> {
         "--ref",
         &release,
         "--yes",
-    ])
+    ])?;
+    Ok(version)
 }
 
 fn release_ref(version: &str) -> Option<String> {
@@ -102,16 +92,6 @@ fn newer_version(current: &str, latest: &str) -> Option<String> {
     (parse_version(latest)? > parse_version(current)?).then(|| latest.to_string())
 }
 
-fn fresh_cached_release(cache: &str, now: u64) -> Option<String> {
-    let mut lines = cache.lines();
-    let checked = lines.next()?.parse::<u64>().ok()?;
-    if now.checked_sub(checked)? > CACHE_SECONDS {
-        return None;
-    }
-    let version = parse_version(lines.next()?)?;
-    Some(format!("{}.{}.{}", version[0], version[1], version[2]))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,18 +110,5 @@ mod tests {
     fn release_ref_accepts_stable_versions_only() {
         assert_eq!(release_ref("0.3.3"), Some("v0.3.3".into()));
         assert_eq!(release_ref("0.3.3; rm -rf /"), None);
-    }
-
-    #[test]
-    fn cached_release_expires_after_one_day() {
-        assert_eq!(
-            fresh_cached_release("100\n0.3.2\n", 100 + CACHE_SECONDS),
-            Some("0.3.2".into())
-        );
-        assert_eq!(
-            fresh_cached_release("100\n0.3.2\n", 100 + CACHE_SECONDS + 1),
-            None
-        );
-        assert_eq!(fresh_cached_release("invalid", 100), None);
     }
 }

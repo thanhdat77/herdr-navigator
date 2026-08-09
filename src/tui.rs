@@ -92,8 +92,8 @@ pub(crate) fn tui_loop(
                 cleanup_terminal(&mut terminal)?;
                 if let Some(version) = app.update_available.clone() {
                     if confirm_update(&version)? {
-                        match crate::update::install(&version) {
-                            Ok(()) => eprintln!("Updated Herdr Navigator to v{version}."),
+                        match crate::update::install() {
+                            Ok(installed) => eprintln!("Updated Herdr Navigator to v{installed}."),
                             Err(error) => eprintln!("Update failed: {error}"),
                         }
                         wait_for_key();
