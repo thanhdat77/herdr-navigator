@@ -33,6 +33,25 @@ pub(crate) fn run_herdr<const N: usize>(args: [&str; N]) -> Result<(), String> {
     }
 }
 
+pub(crate) fn run_herdr_quiet<const N: usize>(args: [&str; N]) -> Result<(), String> {
+    let mut command = Command::new(herdr_bin());
+    command.args(args);
+    run_command_quiet(&mut command)
+}
+
+fn run_command_quiet(command: &mut Command) -> Result<(), String> {
+    let output = command.output().map_err(|error| error.to_string())?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if stderr.is_empty() {
+        Err(format!("herdr exited with {}", output.status))
+    } else {
+        Err(stderr)
+    }
+}
+
 pub(crate) fn notify_done(body: &str, config: &NotificationsConfig) {
     notify(body, "done", config);
 }
@@ -47,19 +66,19 @@ fn notify(body: &str, default_sound: &'static str, config: &NotificationsConfig)
     }
     let body = truncate(body, 180);
     let (sound, custom_sound) = notification_audio(config, default_sound);
-    let _ = Command::new(herdr_bin())
-        .args([
-            "notification",
-            "show",
-            "Herdr Navigator",
-            "--body",
-            &body,
-            "--position",
-            "top-right",
-            "--sound",
-            sound,
-        ])
-        .status();
+    let mut command = Command::new(herdr_bin());
+    command.args([
+        "notification",
+        "show",
+        "Herdr Navigator",
+        "--body",
+        &body,
+        "--position",
+        "top-right",
+        "--sound",
+        sound,
+    ]);
+    let _ = run_command_quiet(&mut command);
     if let Some(path) = custom_sound {
         play_custom_sound(path);
     }
@@ -147,5 +166,13 @@ mod tests {
             notification_audio(&custom, "done"),
             ("none", Some("~/sounds/navigator.wav"))
         );
+    }
+
+    #[test]
+    fn quiet_command_captures_child_output() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "printf ignored; printf failure >&2; exit 7"]);
+
+        assert_eq!(run_command_quiet(&mut command), Err("failure".into()));
     }
 }

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     config::Config,
-    herdr::{herdr_json, notify_done, notify_error, run_herdr},
+    herdr::{herdr_json, notify_done, notify_error, run_herdr, run_herdr_quiet},
     integrations::{command, herdr_plus, sessions},
     matcher::Scorer,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
@@ -381,12 +381,24 @@ impl App {
                 .ok_or("no open workspace for selected item")?;
             (id, e.title.clone())
         };
-        if let Some(err) = close_current_workspace_error(&id, launch_workspace_id().as_deref()) {
+        let origin_workspace = launch_workspace_id();
+        if let Some(err) = close_current_workspace_error(&id, origin_workspace.as_deref()) {
             return Err(err);
         }
-        run_herdr(["workspace", "close", &id])?;
-        notify_done(&format!("Closed {title}"), &self.config.notifications);
+        run_herdr_quiet(["workspace", "close", &id])?;
+        let focus_result = workspace_focus_to_restore(&id, origin_workspace.as_deref())
+            .map_or(Ok(()), |origin| {
+                run_herdr_quiet(["workspace", "focus", origin])
+            });
         self.refresh();
+        if let Err(error) = focus_result {
+            notify_error(
+                &format!("Closed {title}, but failed to restore focus: {error}"),
+                &self.config.notifications,
+            );
+            return Ok(());
+        }
+        notify_done(&format!("Closed {title}"), &self.config.notifications);
         Ok(())
     }
 
@@ -811,6 +823,10 @@ fn close_current_workspace_error(id: &str, current: Option<&str>) -> Option<Stri
         .then(|| "can't close the workspace that owns this picker; switch away first".into())
 }
 
+fn workspace_focus_to_restore<'a>(closed_id: &str, origin: Option<&'a str>) -> Option<&'a str> {
+    origin.filter(|origin| *origin != closed_id)
+}
+
 fn agent_sort(configured: &str) -> String {
     match configured.to_lowercase().as_str() {
         "priority" => "priority".into(),
@@ -1211,6 +1227,13 @@ mod tests {
         );
         assert_eq!(close_current_workspace_error("w1", Some("w2")), None);
         assert_eq!(close_current_workspace_error("w1", None), None);
+    }
+
+    #[test]
+    fn restores_focus_to_picker_origin_after_closing_another_workspace() {
+        assert_eq!(workspace_focus_to_restore("w2", Some("w1")), Some("w1"));
+        assert_eq!(workspace_focus_to_restore("w1", Some("w1")), None);
+        assert_eq!(workspace_focus_to_restore("w2", None), None);
     }
 
     #[test]
