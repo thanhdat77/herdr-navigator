@@ -4,9 +4,18 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-08-11
+
+### Added
+- Allow newly created workspaces to use plain labels without the `dir:` / `project:` prefix.
+
 ### Fixed
 - Agent terminal IDs remain searchable while focus actions continue to target pane IDs.
 - Keep typing responsive on large indexes by resolving each entry's canonical path once instead of on every sort comparison, and by building the fuzzy matcher once per query instead of once per candidate ([#22](https://github.com/thanhdat77/herdr-navigator/issues/22)).
+- Hide source-filter shortcuts for disabled sources.
+- Always install the latest release when `F5` is pressed on the update badge.
+- Restore focus to the picker-origin workspace after closing another workspace ([#16](https://github.com/thanhdat77/herdr-navigator/issues/16)).
+- Suppress Herdr CLI JSON responses while closing a workspace so they cannot corrupt the picker render.
 
 ## [0.3.5] - 2026-08-02
 

@@ -1,6 +1,6 @@
 [package]
 name = "herdr-navigator"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2021"
 description = "Jump to anything in Herdr from one fuzzy navigator"
 license = "MIT"
