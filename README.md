@@ -235,6 +235,15 @@ audio = false # set true to enable sound
 sound = "default" # default | custom
 custom_sound = "" # Example: "~/sounds/navigator.wav"
 
+[theme]
+# Optional Navigator base palette: catppuccin, dracula, nord, tokyo-night, etc.
+# name = "dracula"
+# Inherit Herdr's static [theme.custom] tokens when available.
+inherit_herdr = true
+# Navigator custom tokens have the highest precedence.
+# [theme.custom]
+# accent = "#ff00ff"
+
 [sources]
 open_workspaces = true
 agents = true
@@ -260,7 +269,7 @@ Useful config surfaces:
 - `[picker.filter_keys]` remaps source shortcuts.
 - `[[agent_aliases]]` adds memorable search terms without renaming Herdr panes.
 - `[sessions]` controls local sessions and manual remote targets.
-- `[theme]` inherits supported Herdr themes and custom tokens.
+- `[theme]` can select a supported Navigator palette with `theme.name`. With `inherit_herdr = true`, Navigator uses Herdr's configured palette when `theme.name` is unset. If Navigator selects the base palette, inherited Herdr `[theme.custom]` tokens are applied next, then Navigator `[theme.custom]` tokens win. Missing or invalid inherited config falls back to Catppuccin; disabled inheritance with no Navigator name falls back to One Light.
 - `[[integrations]]` adds external command/JSON sources.
 
 ## Add your own source

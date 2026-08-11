@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
 };
@@ -406,18 +407,45 @@ impl Theme {
         }
     }
 
-    pub(crate) fn load(inherit: bool) -> Self {
-        if !inherit {
-            return Self::one_light();
+    pub(crate) fn load(
+        plugin_name: Option<&str>,
+        plugin_custom: Option<&HashMap<String, String>>,
+        inherit: bool,
+    ) -> Self {
+        let herdr = inherit
+            .then(|| fs::read_to_string(herdr_config_path()).ok())
+            .flatten()
+            .and_then(|contents| contents.parse::<toml::Value>().ok());
+
+        Self::from_inputs(plugin_name, plugin_custom, herdr.as_ref(), inherit)
+    }
+
+    fn from_inputs(
+        plugin_name: Option<&str>,
+        plugin_custom: Option<&HashMap<String, String>>,
+        herdr: Option<&toml::Value>,
+        inherit: bool,
+    ) -> Self {
+        let (mut theme, has_plugin_theme) = match plugin_name.and_then(Self::from_name) {
+            Some(theme) => (theme, true),
+            None if inherit => (
+                herdr
+                    .map(Self::from_herdr_config)
+                    .unwrap_or_else(Self::catppuccin),
+                false,
+            ),
+            None => (Self::one_light(), false),
+        };
+
+        if has_plugin_theme {
+            if let Some(custom) = herdr.and_then(herdr_theme_custom) {
+                theme.apply_custom(custom);
+            }
         }
-        let path = herdr_config_path();
-        let Ok(s) = fs::read_to_string(path) else {
-            return Self::catppuccin();
-        };
-        let Ok(v) = s.parse::<toml::Value>() else {
-            return Self::catppuccin();
-        };
-        Self::from_herdr_config(&v)
+        if let Some(custom) = plugin_custom {
+            theme.apply_custom_map(custom);
+        }
+        theme
     }
 
     fn from_herdr_config(v: &toml::Value) -> Self {
@@ -431,12 +459,7 @@ impl Theme {
         {
             theme = name;
         }
-        if let Some(custom) = v
-            .get("theme")
-            .and_then(|x| x.as_table())
-            .and_then(|x| x.get("custom"))
-            .and_then(|x| x.as_table())
-        {
+        if let Some(custom) = herdr_theme_custom(v) {
             theme.apply_custom(custom);
         }
         theme
@@ -474,6 +497,14 @@ impl Theme {
         }
     }
 
+    fn apply_custom_map(&mut self, custom: &HashMap<String, String>) {
+        for (key, value) in custom {
+            if let Some(color) = parse_color(value) {
+                self.set(key, color);
+            }
+        }
+    }
+
     fn set(&mut self, key: &str, color: Color) {
         match key {
             "accent" => self.accent = color,
@@ -495,6 +526,13 @@ impl Theme {
             _ => {}
         }
     }
+}
+
+fn herdr_theme_custom(v: &toml::Value) -> Option<&toml::map::Map<String, toml::Value>> {
+    v.get("theme")
+        .and_then(|theme| theme.as_table())
+        .and_then(|theme| theme.get("custom"))
+        .and_then(|custom| custom.as_table())
 }
 
 fn herdr_config_path() -> PathBuf {
@@ -565,6 +603,20 @@ mod tests {
     #[test]
     fn inherits_herdr_default_when_theme_name_is_unset() {
         let theme = Theme::from_herdr_config(&theme_value(""));
+
+        assert_eq!(theme.panel_bg, rgb(24, 24, 37));
+        assert_eq!(theme.accent, rgb(137, 180, 250));
+    }
+
+    #[test]
+    fn invalid_inherited_theme_name_falls_back_to_catppuccin() {
+        let herdr = theme_value(
+            r#"
+            [theme]
+            name = "not-a-theme"
+            "#,
+        );
+        let theme = Theme::from_inputs(None, None, Some(&herdr), true);
 
         assert_eq!(theme.panel_bg, rgb(24, 24, 37));
         assert_eq!(theme.accent, rgb(137, 180, 250));
@@ -644,5 +696,49 @@ mod tests {
         assert_eq!(theme.accent, rgb(1, 2, 3));
         assert_eq!(theme.green, Color::Blue);
         assert_eq!(theme.peach, Color::Reset);
+    }
+
+    #[test]
+    fn plugin_theme_overrides_herdr_base_and_layers_custom_tokens() {
+        let plugin_custom =
+            std::collections::HashMap::from([("accent".to_string(), "#ff00ff".to_string())]);
+        let herdr = theme_value(
+            r##"
+            [theme]
+            name = "catppuccin"
+
+            [theme.custom]
+            text = "#010203"
+            accent = "#112233"
+            "##,
+        );
+
+        let theme = Theme::from_inputs(Some("dracula"), Some(&plugin_custom), Some(&herdr), true);
+
+        assert_eq!(theme.panel_bg, rgb(40, 42, 54));
+        assert_eq!(theme.text, rgb(1, 2, 3));
+        assert_eq!(theme.accent, rgb(255, 0, 255));
+    }
+
+    #[test]
+    fn missing_inherited_herdr_config_falls_back_to_catppuccin() {
+        let theme = Theme::from_inputs(None, None, None, true);
+
+        assert_eq!(theme.panel_bg, rgb(24, 24, 37));
+        assert_eq!(theme.accent, rgb(137, 180, 250));
+    }
+
+    #[test]
+    fn disabled_inheritance_uses_one_light() {
+        let herdr = theme_value(
+            r#"
+            [theme]
+            name = "dracula"
+            "#,
+        );
+        let theme = Theme::from_inputs(None, None, Some(&herdr), false);
+
+        assert_eq!(theme.panel_bg, rgb(250, 250, 250));
+        assert_eq!(theme.accent, rgb(64, 120, 242));
     }
 }

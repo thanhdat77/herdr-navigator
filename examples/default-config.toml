@@ -110,9 +110,17 @@ sessions = true
 herdr_plus_quick_actions = true
 
 [theme]
-# Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.
-# Falls back to the built-in One Light palette.
+# Optional Navigator base palette. Supports the same named palettes as Herdr,
+# for example "dracula", "nord", and "tokyo-night".
+# name = "dracula"
+#
+# Read ~/.config/herdr/config.toml theme and [theme.custom] tokens when name is unset.
+# If name is set and inheritance remains enabled, inherited Herdr custom tokens
+# layer over that base; Navigator [theme.custom] tokens below win over both.
 inherit_herdr = true
+#
+# [theme.custom]
+# accent = "#ff00ff"
 
 # Keep roots short; zoxide should handle most frequent directories.
 [[roots]]

@@ -154,6 +154,10 @@ pub(crate) struct IntegrationConfig {
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct ThemeConfig {
+    #[serde(default)]
+    pub(crate) name: Option<String>,
+    #[serde(default)]
+    pub(crate) custom: HashMap<String, String>,
     #[serde(default = "yes")]
     pub(crate) inherit_herdr: bool,
 }
@@ -368,6 +372,8 @@ impl Default for NotificationsConfig {
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
+            name: None,
+            custom: HashMap::new(),
             inherit_herdr: true,
         }
     }
@@ -502,6 +508,7 @@ mod tests {
             r#"
             [picker]
             directory_template = "default.toml"
+
             directory_template_key = "ctrl-g"
             "#,
         )
@@ -527,6 +534,26 @@ mod tests {
         .unwrap();
 
         assert!(!config.picker.check_updates);
+    }
+
+    #[test]
+    fn theme_config_accepts_plugin_name_and_custom_tokens() {
+        let config: Config = toml::from_str(
+            r##"
+            [theme]
+            name = "dracula"
+
+            [theme.custom]
+            accent = "#ff00ff"
+            "##,
+        )
+        .unwrap();
+
+        assert_eq!(config.theme.name.as_deref(), Some("dracula"));
+        assert_eq!(
+            config.theme.custom.get("accent").map(String::as_str),
+            Some("#ff00ff")
+        );
     }
 
     #[test]
