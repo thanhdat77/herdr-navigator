@@ -1,0 +1,25 @@
+title: "[idea] "
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea / problem
+      description: What do you want to do, or what feels awkward today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: requested-change
+    attributes:
+      label: Requested change
+      description: What would you like Navigator to support?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      description: How would this help your workflow?
+    validations:
+      required: true
