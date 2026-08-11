@@ -9,6 +9,30 @@ pub(crate) fn plugin_config_dir() -> PathBuf {
         .unwrap_or_else(|_| home().join(".config/herdr/plugins/config/herdr-navigator"))
 }
 
+pub(crate) fn plugin_state_dir() -> PathBuf {
+    env::var("HERDR_PLUGIN_STATE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| herdr_state_dir().join("plugins/herdr-navigator"))
+}
+
+#[cfg(not(windows))]
+fn herdr_state_dir() -> PathBuf {
+    env::var("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| home().join(".local/state"))
+        .join("herdr")
+}
+
+#[cfg(windows)]
+fn herdr_state_dir() -> PathBuf {
+    env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .or_else(|_| env::var("USERPROFILE").map(|dir| PathBuf::from(dir).join("AppData/Local")))
+        .or_else(|_| env::var("HOME").map(|dir| PathBuf::from(dir).join(".local/state")))
+        .unwrap_or_else(|_| env::temp_dir().join("herdr-state"))
+        .join("herdr")
+}
+
 pub(crate) fn migrate_legacy_plugin_config() {
     let current = plugin_config_dir();
     let legacy = home().join(".config/herdr/plugins/config/herdr-picker-plus");

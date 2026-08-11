@@ -11,11 +11,14 @@ use serde_json::Value;
 use crate::{
     config::Config,
     herdr::herdr_json,
-    model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
+    model::{Entry, EntryAction, Source, WorkspaceRef},
+    navigator_state::NavigatorSnapshot,
     paths::{basename, canonical_str, expand_path, home},
 };
 
-pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>) {
+pub(crate) fn collect_workspaces(
+    snapshot: &mut NavigatorSnapshot,
+) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
     let ws_json = herdr_json(["workspace", "list"]).unwrap_or(Value::Null);
     let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
     let mut cwd_by_ws: HashMap<String, String> = HashMap::new();
@@ -37,15 +40,21 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
             }
         }
     }
-    workspaces_from_json(&ws_json, &cwd_by_ws)
+    workspaces_from_json(&ws_json, &cwd_by_ws, snapshot)
 }
 
 fn workspaces_from_json(
     ws_json: &Value,
     cwd_by_ws: &HashMap<String, String>,
-) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>) {
+    snapshot: &mut NavigatorSnapshot,
+) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
+    let has_live_workspace_list = ws_json
+        .pointer("/result/workspaces")
+        .and_then(|value| value.as_array())
+        .is_some();
     let mut entries = Vec::new();
     let mut map = HashMap::new();
+    let mut snapshot_changed = false;
     if let Some(workspaces) = ws_json
         .pointer("/result/workspaces")
         .and_then(|v| v.as_array())
@@ -65,11 +74,14 @@ fn workspaces_from_json(
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
             let focused = w.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
+            if !id.is_empty() {
+                snapshot_changed |= snapshot.migrate_legacy_kind(id, label);
+            }
             if let Some(key) = canonical_str(&path) {
                 map.entry(key).or_insert_with(Vec::new).push(WorkspaceRef {
                     id: id.into(),
                     label: label.into(),
-                    kind: workspace_kind(label),
+                    kind: snapshot.workspace_kind(id, label),
                     path: path.clone(),
                     tab_count,
                     pane_count,
@@ -99,18 +111,7 @@ fn workspaces_from_json(
             });
         }
     }
-    (entries, map)
-}
-
-fn workspace_kind(label: &str) -> WorkspaceKind {
-    let label = label.trim().to_ascii_lowercase();
-    if label.starts_with("project:") {
-        WorkspaceKind::Project
-    } else if label.starts_with("dir:") {
-        WorkspaceKind::Dir
-    } else {
-        WorkspaceKind::Unknown
-    }
+    (entries, map, snapshot_changed, has_live_workspace_list)
 }
 
 pub(crate) fn collect_agents(
@@ -323,7 +324,8 @@ mod tests {
         let ws_json = serde_json::json!({"id":"cli:workspace:list","result":{"type":"workspace_list","workspaces":[
             {"active_tab_id":"w41:t1","agent_status":"unknown","focused":false,"label":"~","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w41"},
             {"active_tab_id":"w43:t1","agent_status":"working","focused":true,"label":"dir: picker","number":3,"pane_count":1,"tab_count":1,"workspace_id":"w43"}]}});
-        let (entries, _) = workspaces_from_json(&ws_json, &HashMap::new());
+        let (entries, _, _, _) =
+            workspaces_from_json(&ws_json, &HashMap::new(), &mut NavigatorSnapshot::default());
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].subtitle, "agent:unknown · w41 tabs:1 panes:1");
         assert!(entries[0].search_terms.contains(&"unknown".to_string()));
@@ -345,6 +347,37 @@ mod tests {
         assert!(agents[0].search_terms.contains(&"term_1".to_string()));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
         assert!(agents[0].subtitle.starts_with("working"));
+    }
+
+    #[test]
+    fn persisted_workspace_kind_survives_label_changes_and_legacy_labels_migrate() {
+        let ws_json = serde_json::json!({"result":{"workspaces":[
+            {"workspace_id":"w1","label":"renamed","tab_count":1,"pane_count":1},
+            {"workspace_id":"w2","label":"project: legacy","tab_count":1,"pane_count":1}
+        ]}});
+        let cwd_by_ws = HashMap::from([("w1".into(), "/tmp".into()), ("w2".into(), "/tmp".into())]);
+        let mut snapshot = NavigatorSnapshot::default();
+        snapshot.record("w1", crate::model::WorkspaceKind::Dir);
+
+        let (_, workspaces, migrated, live) =
+            workspaces_from_json(&ws_json, &cwd_by_ws, &mut snapshot);
+
+        assert!(live);
+
+        assert!(migrated);
+        let workspaces = workspaces.get("/tmp").unwrap();
+        assert!(matches!(
+            workspaces[0].kind,
+            crate::model::WorkspaceKind::Dir
+        ));
+        assert!(matches!(
+            workspaces[1].kind,
+            crate::model::WorkspaceKind::Project
+        ));
+        assert!(matches!(
+            snapshot.workspace_kind("w2", "renamed"),
+            crate::model::WorkspaceKind::Project
+        ));
     }
 
     #[test]

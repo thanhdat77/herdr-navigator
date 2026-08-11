@@ -217,6 +217,7 @@ See [`examples/default-config.toml`](examples/default-config.toml) for every opt
 [picker]
 reuse_existing = true
 create_missing = true
+prefix_workspace_labels = true # set false to keep new labels plain
 engine = "nucleo" # nucleo | skim | simple
 source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "server", "quick", "plugin"]
 source_priority_boost = 5
@@ -253,6 +254,7 @@ Useful config surfaces:
 
 - `picker.detailed_rows` enables source-aware rows: right-aligned metadata for most sources and a full-path second line only for zoxide/root.
 - `picker.check_updates` checks GitHub releases in the background at most daily and shows `↑ vX.Y.Z available · F5 update`; press `F5`, confirm, and Navigator installs that release through Herdr. Failures stay silent until an update is requested.
+- `picker.prefix_workspace_labels` defaults to `true` and prefixes newly created workspace labels with `project:` or `dir:`. Set it to `false` for plain labels; Navigator still persists the workspace kind.
 - `picker.directory_template = "default.toml"` reuses that Herdr Plus project file from its `projects/` config directory. `Enter` keeps normal reuse/create behavior. `picker.directory_template_key` defaults to `alt-enter` and also accepts Ctrl forms such as `ctrl-g`; the shortcut always applies all template tabs, panes, labels, and commands using the selected directory instead of the template's `working_dir`, creating the workspace or appending fresh template tabs.
 - `[notifications]` can disable notifications entirely or use Herdr's default sounds, no sound, or a custom audio file.
 - `[picker.filter_keys]` remaps source shortcuts.

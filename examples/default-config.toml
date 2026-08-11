@@ -11,6 +11,10 @@ reuse_existing = true
 # Create a new Herdr workspace when the selected path is not open yet.
 create_missing = true
 
+# Prefix new workspace labels with their Navigator kind (project: / dir:).
+# Set false to keep labels plain; Navigator still persists the kind separately.
+prefix_workspace_labels = true
+
 # Search engine: "nucleo" | "skim" | "simple"
 # - nucleo: best default; fast, fzf-like scoring, good Unicode support
 # - skim: skim/fzf-style matcher via fuzzy-matcher crate

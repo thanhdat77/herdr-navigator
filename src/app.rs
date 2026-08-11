@@ -10,6 +10,7 @@ use crate::{
     integrations::{command, herdr_plus, sessions},
     matcher::Scorer,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
+    navigator_state::NavigatorSnapshot,
     paths::{canonical_str, herdr_plus_quick_actions_dir, home, plugin_config_dir},
     sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
@@ -43,6 +44,7 @@ pub(crate) struct App {
     pub(crate) source_filter: Option<Source>,
     pub(crate) preview: bool,
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
+    navigator_snapshot: NavigatorSnapshot,
     pub(crate) previous_workspace_id: Option<String>,
     pub(crate) pinned_entries: HashSet<String>,
     pub(crate) spinner_tick: u32,
@@ -64,6 +66,7 @@ impl App {
             source_filter: None,
             preview,
             path_to_workspaces: HashMap::new(),
+            navigator_snapshot: NavigatorSnapshot::load(),
             previous_workspace_id: None,
             pinned_entries: HashSet::new(),
             spinner_tick: 0,
@@ -74,7 +77,19 @@ impl App {
     pub(crate) fn refresh(&mut self) {
         let mut entries = Vec::new();
         let mut seen = HashSet::new();
-        let (workspace_entries, path_to_workspaces) = collect_workspaces();
+        let (workspace_entries, path_to_workspaces, migrated_legacy, has_live_workspace_list) =
+            collect_workspaces(&mut self.navigator_snapshot);
+        let reconciled = has_live_workspace_list
+            && self.navigator_snapshot.reconcile(
+                workspace_entries
+                    .iter()
+                    .filter_map(|entry| entry.workspace_id.as_deref()),
+            );
+        if migrated_legacy || reconciled {
+            if let Err(error) = self.navigator_snapshot.save() {
+                eprintln!("warning: failed to save Navigator workspace metadata: {error}");
+            }
+        }
         self.path_to_workspaces = path_to_workspaces;
 
         if self.config.sources.open_workspaces {
@@ -282,8 +297,8 @@ impl App {
         .then_some(template)
     }
 
-    pub(crate) fn open_selected(&self, use_directory_template: bool) -> Result<(), String> {
-        let e = self.selected_entry().ok_or("nothing selected")?;
+    pub(crate) fn open_selected(&mut self, use_directory_template: bool) -> Result<(), String> {
+        let e = self.selected_entry().cloned().ok_or("nothing selected")?;
         let tracks_workspace_transition = self.config.jump_back.enabled
             && matches!(
                 &e.action,
@@ -304,7 +319,7 @@ impl App {
             EntryAction::FocusWorkspace { id } => {
                 (run_herdr(["workspace", "focus", id]), true, true)
             }
-            EntryAction::OpenProject => (self.open_project(e), true, true),
+            EntryAction::OpenProject => (self.open_project(&e), true, true),
             EntryAction::OpenRemote { target } => (sessions::open_remote(target), false, true),
             EntryAction::AttachSession { name, .. } => {
                 (sessions::attach_session(name), false, true)
@@ -384,7 +399,7 @@ impl App {
         }
     }
 
-    pub(crate) fn open_project(&self, e: &Entry) -> Result<(), String> {
+    pub(crate) fn open_project(&mut self, e: &Entry) -> Result<(), String> {
         if self.config.picker.reuse_existing {
             if let Some(ws) = self.matching_project_workspace(e) {
                 return run_herdr(["workspace", "focus", &ws.id]);
@@ -394,9 +409,11 @@ impl App {
             return Err("create_missing=false and no workspace exists".into());
         }
         let project = e.project.as_ref();
-        let label = project
-            .map(|p| format!("project: {}", p.name))
-            .unwrap_or_else(|| format!("project: {}", e.title));
+        let label = created_workspace_label(
+            WorkspaceKind::Project,
+            project.map(|p| p.name.as_str()).unwrap_or(&e.title),
+            self.config.picker.prefix_workspace_labels,
+        );
         let json = herdr_json([
             "workspace",
             "create",
@@ -406,6 +423,7 @@ impl App {
             &label,
             "--focus",
         ])?;
+        self.record_created_workspace(&json, WorkspaceKind::Project);
         if let Some(p) = project {
             herdr_plus::bootstrap_project_tabs(p, &json, &e.path)?;
         }
@@ -413,7 +431,7 @@ impl App {
     }
 
     pub(crate) fn focus_or_create_dir(
-        &self,
+        &mut self,
         path: &Path,
         label: &str,
         use_directory_template: bool,
@@ -440,9 +458,14 @@ impl App {
                 "--cwd",
                 &path.display().to_string(),
                 "--label",
-                &format!("dir: {label}"),
+                &created_workspace_label(
+                    WorkspaceKind::Dir,
+                    label,
+                    self.config.picker.prefix_workspace_labels,
+                ),
                 "--focus",
             ])?;
+            self.record_created_workspace(&json, WorkspaceKind::Dir);
             return herdr_plus::bootstrap_project_tabs(&template, &json, path);
         }
 
@@ -454,15 +477,32 @@ impl App {
         if !self.config.picker.create_missing {
             return Err("create_missing=false and no workspace exists".into());
         }
-        run_herdr([
+        let json = herdr_json([
             "workspace",
             "create",
             "--cwd",
             &path.display().to_string(),
             "--label",
-            &format!("dir: {label}"),
+            &created_workspace_label(
+                WorkspaceKind::Dir,
+                label,
+                self.config.picker.prefix_workspace_labels,
+            ),
             "--focus",
-        ])
+        ])?;
+        self.record_created_workspace(&json, WorkspaceKind::Dir);
+        Ok(())
+    }
+
+    fn record_created_workspace(&mut self, response: &serde_json::Value, kind: WorkspaceKind) {
+        let Some(id) = workspace_created_id(response) else {
+            eprintln!("warning: Herdr created a workspace but did not return its workspace ID");
+            return;
+        };
+        self.navigator_snapshot.record(id, kind);
+        if let Err(error) = self.navigator_snapshot.save() {
+            eprintln!("warning: failed to save Navigator workspace metadata: {error}");
+        }
     }
 
     pub(crate) fn workspaces_for_entry(&self, e: &Entry) -> &[WorkspaceRef] {
@@ -660,6 +700,26 @@ pub(crate) fn jump_back(config: &Config) -> Result<String, String> {
     Ok(label)
 }
 
+fn workspace_created_id(json: &serde_json::Value) -> Option<&str> {
+    json.pointer("/result/workspace/workspace_id")?.as_str()
+}
+
+fn created_workspace_label(
+    kind: WorkspaceKind,
+    label: &str,
+    prefix_workspace_labels: bool,
+) -> String {
+    if !prefix_workspace_labels {
+        return label.into();
+    }
+    let prefix = match kind {
+        WorkspaceKind::Project => "project",
+        WorkspaceKind::Dir => "dir",
+        WorkspaceKind::Unknown => return label.into(),
+    };
+    format!("{prefix}: {label}")
+}
+
 fn focused_workspace_id(json: &serde_json::Value) -> Option<&str> {
     json.pointer("/result/workspaces")
         .and_then(|v| v.as_array())?
@@ -850,6 +910,27 @@ mod tests {
             tab_count: 1,
             pane_count: 1,
         }
+    }
+
+    #[test]
+    fn created_workspace_labels_prefix_by_default_and_can_be_plain() {
+        assert_eq!(
+            created_workspace_label(WorkspaceKind::Project, "Navigator", true),
+            "project: Navigator"
+        );
+        assert_eq!(
+            created_workspace_label(WorkspaceKind::Dir, "tmp", false),
+            "tmp"
+        );
+    }
+
+    #[test]
+    fn extracts_created_workspace_stable_id() {
+        let response = serde_json::json!({
+            "result": {"type": "workspace_created", "workspace": {"workspace_id": "w42"}}
+        });
+        assert_eq!(workspace_created_id(&response), Some("w42"));
+        assert_eq!(workspace_created_id(&serde_json::Value::Null), None);
     }
 
     fn agent_entry() -> Entry {

@@ -10,6 +10,7 @@ mod integrations;
 mod keymap;
 mod matcher;
 mod model;
+mod navigator_state;
 mod paths;
 mod sources;
 mod theme;

@@ -37,6 +37,8 @@ pub(crate) struct PickerConfig {
     pub(crate) reuse_existing: bool,
     #[serde(default = "yes")]
     pub(crate) create_missing: bool,
+    #[serde(default = "yes")]
+    pub(crate) prefix_workspace_labels: bool,
     #[serde(default = "default_engine")]
     pub(crate) engine: String,
     #[serde(default = "default_source_order")]
@@ -258,6 +260,7 @@ impl Default for PickerConfig {
         Self {
             reuse_existing: true,
             create_missing: true,
+            prefix_workspace_labels: true,
             engine: default_engine(),
             source_order: default_source_order(),
             source_priority_boost: default_source_priority_boost(),
@@ -473,6 +476,21 @@ mod tests {
         .unwrap();
 
         assert!(!config.picker.detailed_rows);
+    }
+
+    #[test]
+    fn workspace_label_prefix_defaults_on_and_can_be_disabled() {
+        assert!(Config::default().picker.prefix_workspace_labels);
+
+        let config: Config = toml::from_str(
+            r#"
+            [picker]
+            prefix_workspace_labels = false
+            "#,
+        )
+        .unwrap();
+
+        assert!(!config.picker.prefix_workspace_labels);
     }
 
     #[test]
