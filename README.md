@@ -81,7 +81,7 @@ A single result list can move between live Herdr state and things that are not o
 | **One index across Herdr** | Search workspaces, agents, projects, sessions, remotes, directories, Quick Actions, and integrations together. |
 | **Action-aware Enter** | Results do not just return paths; they focus, create, attach, hand off, invoke, or run. |
 | **Reuse first** | Existing workspaces are focused before new ones are created. Project and directory workspaces sharing a cwd keep separate identities. |
-| **Agents are first-class** | Search agent name, status, workspace, cwd, pane/tab/terminal IDs, session ID, and your own aliases. |
+| **Agents are first-class** | Search agent name, status, workspace, tab label, terminal title, cwd, pane/tab/terminal IDs, session ID, and your own aliases. A named tab titles its agent row, so panes of one monorepo stay distinguishable. |
 | **Extensible without Rust** | Add another tool with a command that returns JSON and a command that opens the selected item. |
 | **No picker dependency** | The Rust/ratatui interface runs in a Herdr-managed pane; `fzf` and `tv` are not runtime requirements. |
 

@@ -119,11 +119,41 @@ pub(crate) fn collect_agents(
     aliases: &[crate::config::AgentAliasConfig],
 ) -> Vec<Entry> {
     let agent_json = herdr_json(["agent", "list"]).unwrap_or(Value::Null);
-    agents_from_json(&agent_json, workspaces, aliases)
+    let tab_json = herdr_json(["tab", "list"]).unwrap_or(Value::Null);
+    agents_from_json(
+        &agent_json,
+        &tab_labels_from_json(&tab_json),
+        workspaces,
+        aliases,
+    )
+}
+
+/// Tab labels as `tab_id → label`. Herdr reports an unnamed tab with its number
+/// as the label, which adds nothing to a row, so those are skipped.
+fn tab_labels_from_json(tab_json: &Value) -> HashMap<String, String> {
+    let mut labels = HashMap::new();
+    if let Some(tabs) = tab_json.pointer("/result/tabs").and_then(|v| v.as_array()) {
+        for t in tabs {
+            let Some(id) = t.get("tab_id").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let label = t.get("label").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let number = t
+                .get("number")
+                .and_then(|v| v.as_i64())
+                .map(|n| n.to_string());
+            if label.is_empty() || number.as_deref() == Some(label) {
+                continue;
+            }
+            labels.insert(id.to_string(), label.to_string());
+        }
+    }
+    labels
 }
 
 fn agents_from_json(
     agent_json: &Value,
+    tab_labels: &HashMap<String, String>,
     workspaces: &[Entry],
     aliases: &[crate::config::AgentAliasConfig],
 ) -> Vec<Entry> {
@@ -166,7 +196,22 @@ fn agents_from_json(
                 .filter(|alias| alias.matches(agent, workspace_label, cwd))
                 .map(|alias| alias.alias.clone())
                 .collect();
-            let title = format!("{agent} · {workspace_label} · {dir}");
+            let tab_label = tab_labels.get(tab).map(String::as_str).unwrap_or("");
+            // Coding agents keep rewriting the terminal title with the task they
+            // are on, which makes it the liveliest search term a pane has.
+            let terminal_title = p
+                .get("terminal_title_stripped")
+                .or_else(|| p.get("terminal_title"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            // A tab label separates panes of one project better than its
+            // directory: inside a monorepo every pane shares workspace and cwd.
+            let title = if tab_label.is_empty() {
+                format!("{agent} · {workspace_label} · {dir}")
+            } else {
+                format!("{agent} · {workspace_label} · {tab_label}")
+            };
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -182,6 +227,12 @@ fn agents_from_json(
             ];
             if let Some(session) = p.pointer("/agent_session/value").and_then(|v| v.as_str()) {
                 search_terms.push(session.into());
+            }
+            if !tab_label.is_empty() {
+                search_terms.push(tab_label.into());
+            }
+            if !terminal_title.is_empty() {
+                search_terms.push(terminal_title.into());
             }
             search_terms.extend(alias_terms);
             entries.push(Entry {
@@ -337,9 +388,21 @@ mod tests {
             {"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"58f4-session"},
              "agent_status":"working","cwd":"/tmp","focused":true,"foreground_cwd":"/tmp","pane_id":"w43:p1",
              "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
-        let agents = agents_from_json(&agent_json, &entries, &[]);
+        let tab_json = serde_json::json!({"id":"cli:tab:list","result":{"type":"tab_list","tabs":[
+            {"agent_status":"working","focused":true,"label":"primary","number":1,"pane_count":1,"tab_id":"w43:t1","workspace_id":"w43"},
+            {"agent_status":"idle","focused":false,"label":"2","number":2,"pane_count":1,"tab_id":"w43:t2","workspace_id":"w43"}]}});
+        let tab_labels = tab_labels_from_json(&tab_json);
+        assert_eq!(
+            tab_labels.get("w43:t1").map(String::as_str),
+            Some("primary")
+        );
+        assert!(!tab_labels.contains_key("w43:t2")); // unnamed tab: label equals its number
+
+        let agents = agents_from_json(&agent_json, &tab_labels, &entries, &[]);
         assert_eq!(agents.len(), 1);
         assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
+        assert_eq!(agents[0].title, "claude · dir: picker · primary");
+        assert!(agents[0].search_terms.contains(&"primary".to_string()));
         assert!(matches!(
             &agents[0].action,
             EntryAction::FocusAgent { target } if target == "w43:p1"
