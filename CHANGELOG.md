@@ -6,6 +6,7 @@ All notable changes to this project are documented here.
 
 ### Added
 - Navigator-specific `[theme].name` and `[theme.custom]` overrides. Navigator layers inherited Herdr custom tokens beneath its own custom tokens ([#20](https://github.com/thanhdat77/herdr-navigator/issues/20)).
+- Agent rows carry the tab label instead of the directory when the tab is named, and both the tab label and the pane's terminal title are searchable. Panes of one monorepo no longer read identically.
 
 ## [0.3.6] - 2026-08-11
 
