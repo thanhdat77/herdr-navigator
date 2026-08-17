@@ -373,8 +373,7 @@ mod tests {
         assert!(agents[0].search_terms.contains(&"term_1".to_string()));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
         assert!(agents[0].search_terms.contains(&"reviewer".to_string()));
-        // Herdr's "stripped" title drops ANSI, not the agent's activity glyph,
-        // so the task is surfaced verbatim rather than guessing at a prefix.
+        // "stripped" means ANSI-stripped, not glyph-stripped.
         assert!(agents[0]
             .search_terms
             .contains(&"◐ Fix buildSrc consumer surface".to_string()));
