@@ -121,6 +121,11 @@ pub(crate) struct Entry {
     pub(crate) action: EntryAction,
     pub(crate) source_label: Option<String>,
     pub(crate) search_terms: Vec<String>,
+    /// Agent kind (`claude`, `opencode`, …) kept separate from `title`, which
+    /// leads with the operator-chosen name when Herdr reports one. The `!`
+    /// filter needs the kind regardless of how the entry is displayed.
+    pub(crate) agent_kind: Option<String>,
+    pub(crate) agent_task: Option<String>,
     /// Lazily resolved `key()`. `canonicalize` is a syscall and `key()` sits on
     /// hot paths (filtering, sorting, pin lookups, rendering), so resolve once.
     pub(crate) canonical: OnceLock<String>,
@@ -221,6 +226,8 @@ mod tests {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            agent_kind: None,
+            agent_task: None,
             canonical: OnceLock::new(),
         }
     }
