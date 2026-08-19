@@ -166,7 +166,15 @@ fn agents_from_json(
                 .filter(|alias| alias.matches(agent, workspace_label, cwd))
                 .map(|alias| alias.alias.clone())
                 .collect();
-            let title = format!("{agent} · {workspace_label} · {dir}");
+            let pane_title = p
+                .get("title")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|t| !t.is_empty());
+            let title = match pane_title {
+                Some(pane_title) => format!("{pane_title} · {agent}"),
+                None => format!("{agent} · {workspace_label} · {dir}"),
+            };
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -182,6 +190,9 @@ fn agents_from_json(
             ];
             if let Some(session) = p.pointer("/agent_session/value").and_then(|v| v.as_str()) {
                 search_terms.push(session.into());
+            }
+            if let Some(pane_title) = pane_title {
+                search_terms.push(pane_title.into());
             }
             search_terms.extend(alias_terms);
             entries.push(Entry {
@@ -336,10 +347,18 @@ mod tests {
         let agent_json = serde_json::json!({"id":"cli:agent:list","result":{"type":"agent_list","agents":[
             {"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"58f4-session"},
              "agent_status":"working","cwd":"/tmp","focused":true,"foreground_cwd":"/tmp","pane_id":"w43:p1",
-             "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
+             "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"},
+            {"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"titled-session"},
+             "agent_status":"idle","cwd":"/tmp","focused":false,"foreground_cwd":"/tmp","pane_id":"w43:p2",
+             "revision":0,"tab_id":"w43:t1","terminal_id":"term_2","title":"Fix checkout race",
+             "tokens":{"title":"Fix checkout race"},"workspace_id":"w43"}]}});
         let agents = agents_from_json(&agent_json, &entries, &[]);
-        assert_eq!(agents.len(), 1);
+        assert_eq!(agents.len(), 2);
         assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
+        assert_eq!(agents[1].title, "Fix checkout race · claude");
+        assert!(agents[1]
+            .search_terms
+            .contains(&"Fix checkout race".to_string()));
         assert!(matches!(
             &agents[0].action,
             EntryAction::FocusAgent { target } if target == "w43:p1"
