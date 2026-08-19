@@ -5,6 +5,9 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Agent rows show the pane's session title when one is set (`title · agent` instead of `agent · workspace · dir`), and the title joins the fuzzy search terms.
+
+### Added
 - Navigator-specific `[theme].name` and `[theme.custom]` overrides. Navigator layers inherited Herdr custom tokens beneath its own custom tokens ([#20](https://github.com/thanhdat77/herdr-navigator/issues/20)).
 
 ## [0.3.6] - 2026-08-11
