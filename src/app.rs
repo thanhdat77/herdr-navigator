@@ -49,6 +49,7 @@ pub(crate) struct App {
     pub(crate) pinned_entries: HashSet<String>,
     pub(crate) spinner_tick: u32,
     pub(crate) update_available: Option<String>,
+    pub(crate) list_height: u16,
 }
 
 impl App {
@@ -71,6 +72,7 @@ impl App {
             pinned_entries: HashSet::new(),
             spinner_tick: 0,
             update_available: None,
+            list_height: 0,
         }
     }
 
@@ -253,6 +255,21 @@ impl App {
     }
     pub(crate) fn prev(&mut self) {
         self.selected = self.selected.saturating_sub(1);
+    }
+    /// Page size in entries: the number of rows the last render could show.
+    /// Falls back to a sane default before the first frame is drawn.
+    fn page_size(&self) -> usize {
+        self.list_height.max(1) as usize
+    }
+    pub(crate) fn page_down(&mut self) {
+        if self.filtered.is_empty() {
+            return;
+        }
+        let max = self.filtered.len() - 1;
+        self.selected = self.selected.saturating_add(self.page_size()).min(max);
+    }
+    pub(crate) fn page_up(&mut self) {
+        self.selected = self.selected.saturating_sub(self.page_size());
     }
     pub(crate) fn selected_entry(&self) -> Option<&Entry> {
         self.filtered
@@ -1046,6 +1063,66 @@ mod tests {
         assert_eq!(app.source_filter, Some(Source::Workspace));
         app.cycle_filter();
         assert_eq!(app.source_filter, Some(Source::Project));
+    }
+
+    #[test]
+    fn page_down_advances_by_list_height_and_clamps_at_end() {
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
+        app.entries = (0..30)
+            .map(|i| entry(Source::Workspace, &format!("/p{i}"), &format!("p{i}")))
+            .collect();
+        app.apply_filter();
+        assert_eq!(app.selected, 0);
+
+        // No recorded height yet -> page size falls back to 1.
+        app.list_height = 0;
+        app.page_down();
+        assert_eq!(app.selected, 1);
+
+        // A 10-row list pages by 10 entries.
+        app.list_height = 10;
+        app.page_down();
+        assert_eq!(app.selected, 11);
+        app.page_down();
+        assert_eq!(app.selected, 21);
+        // Clamps at the last entry (index 29).
+        app.page_down();
+        assert_eq!(app.selected, 29);
+        app.page_down();
+        assert_eq!(app.selected, 29);
+    }
+
+    #[test]
+    fn page_up_moves_back_by_list_height_and_clamps_at_zero() {
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
+        app.entries = (0..30)
+            .map(|i| entry(Source::Workspace, &format!("/p{i}"), &format!("p{i}")))
+            .collect();
+        app.apply_filter();
+        app.selected = 29;
+
+        app.list_height = 10;
+        app.page_up();
+        assert_eq!(app.selected, 19);
+        app.page_up();
+        assert_eq!(app.selected, 9);
+        // Clamps at zero.
+        app.page_up();
+        assert_eq!(app.selected, 0);
+        app.page_up();
+        assert_eq!(app.selected, 0);
+    }
+
+    #[test]
+    fn page_movement_is_noop_on_empty_results() {
+        let mut app = App::new(Config::default(), Theme::load(None, None, false));
+        app.entries = vec![];
+        app.apply_filter();
+        app.list_height = 10;
+        app.page_down();
+        assert_eq!(app.selected, 0);
+        app.page_up();
+        assert_eq!(app.selected, 0);
     }
 
     #[test]

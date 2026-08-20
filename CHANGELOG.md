@@ -5,6 +5,8 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `PageUp` / `PageDown` move the selection by one visible page in addition to `Up` / `Down`.
+- `herdr-navigator.open-popup` action and `picker-popup` pane open the picker as a centered 80% × 80% popup over the focused workspace instead of a full-screen overlay. Transient like the overlay (closes on `Enter`/`Esc`) and launch-or-focus within the focused workspace.
 - Navigator-specific `[theme].name` and `[theme.custom]` overrides. Navigator layers inherited Herdr custom tokens beneath its own custom tokens ([#20](https://github.com/thanhdat77/herdr-navigator/issues/20)).
 
 ## [0.3.6] - 2026-08-11

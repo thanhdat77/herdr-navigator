@@ -21,6 +21,12 @@ contexts = ["workspace", "global"]
 command = ["./target/release/herdr-navigator", "open-side"]
 
 [[actions]]
+id = "open-popup"
+title = "Herdr Navigator: open popup"
+contexts = ["workspace", "global"]
+command = ["./target/release/herdr-navigator", "open-popup"]
+
+[[actions]]
 id = "jump-back"
 title = "Herdr Navigator: jump back"
 contexts = ["workspace", "global"]
@@ -40,3 +46,14 @@ id = "picker-side"
 title = "Navigator Side"
 placement = "split"
 command = ["./target/release/herdr-navigator", "ui", "--side"]
+
+# Centered popup variant: floats over the focused workspace at 80% x 80%
+# without replacing it like the overlay. Transient like the overlay (closes on
+# Enter/Esc). Title must stay in sync with POPUP_PANE_LABEL in src/main.rs.
+[[panes]]
+id = "picker-popup"
+title = "Navigator Popup"
+placement = "popup"
+width = "80%"
+height = "80%"
+command = ["./target/release/herdr-navigator", "ui"]

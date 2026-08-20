@@ -244,6 +244,14 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
             app.next();
             Action::Continue
         }
+        Command::PageUp => {
+            app.page_up();
+            Action::Continue
+        }
+        Command::PageDown => {
+            app.page_down();
+            Action::Continue
+        }
         Command::StartSearch => {
             app.query.clear();
             app.apply_filter();
@@ -308,7 +316,7 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
     }
 }
 
-fn draw(f: &mut Frame, app: &App) -> ListHits {
+fn draw(f: &mut Frame, app: &mut App) -> ListHits {
     let area = f.area();
     f.render_widget(Clear, area);
     let mut outer = Block::default()
@@ -646,7 +654,7 @@ fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Col
     }
 }
 
-fn draw_list(f: &mut Frame, app: &App, area: Rect) -> ListHits {
+fn draw_list(f: &mut Frame, app: &mut App, area: Rect) -> ListHits {
     let show_scores = !app.query.trim().is_empty();
     let row_width = area.width.saturating_sub(3) as usize;
     let mut items = Vec::new();
@@ -819,6 +827,9 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) -> ListHits {
     state.select(selected_row);
     let block = Block::default().title(" Results ").borders(Borders::RIGHT);
     let list_area = block.inner(area);
+    // Record the visible row count so PageUp/PageDown can move by one page.
+    // Done after the block is built so the border is excluded.
+    app.list_height = list_area.height;
     let list = List::new(items)
         .block(block)
         .highlight_style(
@@ -1053,7 +1064,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw(f, &app);
+                draw(f, &mut app);
             })
             .unwrap();
 
@@ -1096,7 +1107,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw_list(f, &app, f.area());
+                draw_list(f, &mut app, f.area());
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1190,7 +1201,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw_list(f, &app, f.area());
+                draw_list(f, &mut app, f.area());
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1222,7 +1233,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw_list(f, &app, f.area());
+                draw_list(f, &mut app, f.area());
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1357,7 +1368,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw(f, &app);
+                draw(f, &mut app);
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1421,7 +1432,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw(f, &app);
+                draw(f, &mut app);
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1437,7 +1448,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                draw(f, &app);
+                draw(f, &mut app);
             })
             .unwrap();
         let text = buffer_text(&terminal);
@@ -1462,7 +1473,7 @@ mod tests {
         let backend = TestBackend::new(50, 12);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut hits = ListHits::default();
-        terminal.draw(|f| hits = draw(f, &app)).unwrap();
+        terminal.draw(|f| hits = draw(f, &mut app)).unwrap();
         let visible_row = buffer_text(&terminal)
             .lines()
             .position(|line| line.contains("one"))
@@ -1500,7 +1511,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let mut hits = ListHits::default();
         terminal
-            .draw(|f| hits = draw_list(f, &app, f.area()))
+            .draw(|f| hits = draw_list(f, &mut app, f.area()))
             .unwrap();
         let lines: Vec<_> = buffer_text(&terminal).lines().map(str::to_owned).collect();
         let detail_row = lines
