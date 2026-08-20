@@ -27,11 +27,12 @@ fn main() {
     match env::args().nth(1).as_deref() {
         Some("open") => open_picker(),
         Some("open-side") => open_side_picker(),
+        Some("open-popup") => open_popup_picker(),
         Some("jump-back") => jump_back(),
         Some("ui") => run_ui(env::args().nth(2).as_deref() == Some("--side")),
         Some("list") => debug_list(),
         _ => {
-            eprintln!("usage: herdr-navigator <open|open-side|jump-back|ui|list>");
+            eprintln!("usage: herdr-navigator <open|open-side|open-popup|jump-back|ui|list>");
             process::exit(2);
         }
     }
@@ -41,6 +42,7 @@ fn main() {
 // as labels in `pane list`.
 const PICKER_PANE_LABEL: &str = "Herdr Navigator";
 const SIDE_PANE_LABEL: &str = "Navigator Side";
+const POPUP_PANE_LABEL: &str = "Navigator Popup";
 
 enum PickerDecision {
     Open,
@@ -78,10 +80,40 @@ fn picker_pane_decision(pane_json: &serde_json::Value) -> PickerDecision {
         .unwrap_or(PickerDecision::Open)
 }
 
+fn popup_pane_decision(pane_json: &serde_json::Value) -> PickerDecision {
+    pane_in_focused_workspace(pane_json, POPUP_PANE_LABEL)
+        .and_then(|(_, picker)| picker.get("pane_id")?.as_str())
+        .map(|id| PickerDecision::Focus(id.into()))
+        .unwrap_or(PickerDecision::Open)
+}
+
 fn open_picker() -> ! {
     let json = herdr::herdr_json(["pane", "list"]).unwrap_or(serde_json::Value::Null);
     match picker_pane_decision(&json) {
         PickerDecision::Open => open_plugin_pane("picker", &["--focus"]),
+        PickerDecision::Focus(id) => run_plugin_pane_cmd("focus", &id),
+    }
+}
+
+// Launch-or-focus the popup picker within the focused workspace, mirroring the
+// overlay's `open` action but with a centered `popup` placement (80% x 80%)
+// instead of a full-screen overlay. Transient: closes on Enter/Esc like the
+// overlay, unlike the persistent side pane.
+fn open_popup_picker() -> ! {
+    let json = herdr::herdr_json(["pane", "list"]).unwrap_or(serde_json::Value::Null);
+    match popup_pane_decision(&json) {
+        PickerDecision::Open => open_plugin_pane(
+            "picker-popup",
+            &[
+                "--placement",
+                "popup",
+                "--width",
+                "80%",
+                "--height",
+                "80%",
+                "--focus",
+            ],
+        ),
         PickerDecision::Focus(id) => run_plugin_pane_cmd("focus", &id),
     }
 }
@@ -230,6 +262,39 @@ mod tests {
         ]);
         assert!(matches!(
             picker_pane_decision(&other_workspace),
+            PickerDecision::Open
+        ));
+    }
+
+    #[test]
+    fn popup_picker_opens_once_then_focuses_existing_in_focused_workspace() {
+        let no_popup = pane_list(vec![pane("w1:p1", "w1", None, true)]);
+        assert!(matches!(
+            popup_pane_decision(&no_popup),
+            PickerDecision::Open
+        ));
+
+        let existing_popup = pane_list(vec![
+            pane("w1:p1", "w1", None, true),
+            pane("w1:p2", "w1", Some(POPUP_PANE_LABEL), false),
+        ]);
+        assert!(
+            matches!(popup_pane_decision(&existing_popup), PickerDecision::Focus(id) if id == "w1:p2")
+        );
+
+        // A popup in another workspace does not count; open a fresh one here.
+        let other_workspace = pane_list(vec![
+            pane("w1:p1", "w1", None, true),
+            pane("w2:p2", "w2", Some(POPUP_PANE_LABEL), false),
+        ]);
+        assert!(matches!(
+            popup_pane_decision(&other_workspace),
+            PickerDecision::Open
+        ));
+
+        // A null/empty pane list degrades to Open.
+        assert!(matches!(
+            popup_pane_decision(&serde_json::Value::Null),
             PickerDecision::Open
         ));
     }

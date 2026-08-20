@@ -203,6 +203,26 @@ command = "herdr-navigator.open-side"
 description = "navigator side pane"
 ```
 
+### Centered popup
+
+Float Navigator over your work instead of taking over the whole pane. The popup opens centered at 80% × 80% of the focused workspace, so the surrounding panes stay visible behind it. Like the overlay it is transient — `Enter` or `Esc` closes it.
+
+```bash
+herdr plugin action invoke herdr-navigator.open-popup
+```
+
+Optional binding:
+
+```toml
+[[keys.command]]
+key = "prefix+alt+t"
+type = "plugin_action"
+command = "herdr-navigator.open-popup"
+description = "navigator popup"
+```
+
+Invoking `open-popup` again focuses the existing popup in the current workspace instead of opening a duplicate, matching the overlay's launch-or-focus behavior.
+
 ## Configuration
 
 Navigator writes a fully commented config on first run:
