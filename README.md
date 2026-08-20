@@ -119,6 +119,7 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Enter` | Open selected item normally |
 | `Alt-Enter` | Apply `picker.directory_template` to the selected zoxide/root directory |
 | `Up` / `Down` | Move selection |
+| `PageUp` / `PageDown` | Move selection by one page |
 | `Tab` | Cycle source filters |
 | `Ctrl-W` | Workspaces |
 | `Ctrl-A` / `@` | Agents, using configured status order |

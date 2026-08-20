@@ -13,6 +13,8 @@ pub(crate) enum Command {
     OpenTemplate,
     MoveUp,
     MoveDown,
+    PageUp,
+    PageDown,
     StartSearch,
     CycleFilter,
     DeleteChar,
@@ -207,6 +209,20 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
             "move down",
             "Navigation",
             Some("up/down"),
+        ),
+        binding(
+            Command::PageUp,
+            vec![key(KeyCode::PageUp, KeyModifiers::NONE, "PgUp")],
+            "page up",
+            "Navigation",
+            None,
+        ),
+        binding(
+            Command::PageDown,
+            vec![key(KeyCode::PageDown, KeyModifiers::NONE, "PgDn")],
+            "page down",
+            "Navigation",
+            None,
         ),
     ];
 
