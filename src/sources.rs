@@ -179,7 +179,10 @@ fn agents_from_json(
                 .map(|alias| alias.alias.clone())
                 .collect();
             let display_agent = agent_name.unwrap_or(agent);
-            let title = format!("{display_agent} · {workspace_label} · {dir}");
+            let title = match task_title {
+                Some(task) => format!("{display_agent} · {task} · {workspace_label} · {dir}"),
+                None => format!("{display_agent} · {workspace_label} · {dir}"),
+            };
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -382,7 +385,10 @@ mod tests {
             Some("◐ Fix buildSrc consumer surface")
         );
         assert_eq!(agents[0].agent_kind.as_deref(), Some("claude"));
-        assert!(agents[0].title.starts_with("reviewer · "));
+        assert_eq!(
+            agents[0].title,
+            "reviewer · ◐ Fix buildSrc consumer surface · dir: picker · tmp"
+        );
         assert!(agents[0].subtitle.starts_with("working"));
     }
 
@@ -397,8 +403,8 @@ mod tests {
         let agents = agents_from_json(&agent_json, &[], &[]);
 
         assert_eq!(agents.len(), 2);
-        assert!(agents[0].title.starts_with("opencode · "));
-        assert!(agents[1].title.starts_with("codex · "));
+        assert_eq!(agents[0].title, "opencode · w1 · tmp");
+        assert_eq!(agents[1].title, "codex · w2 · tmp");
         assert_eq!(agents[1].agent_task, None);
         assert!(!agents[1].search_terms.iter().any(|t| t.trim().is_empty()));
     }
