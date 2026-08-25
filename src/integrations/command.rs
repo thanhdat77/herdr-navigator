@@ -80,6 +80,8 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
         source_label: (!matches!(kind.as_str(), "server" | "remote-terminal" | "session"))
             .then(|| integration.label.clone()),
         search_terms: vec![id, kind],
+        agent_kind: None,
+        agent_task: None,
         canonical: OnceLock::new(),
     }
 }

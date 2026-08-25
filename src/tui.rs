@@ -886,6 +886,9 @@ fn preview_text(app: &App, e: &Entry) -> String {
     if let Some(target) = &e.agent_target {
         lines.push(format!("agent target: {target}"));
     }
+    if let Some(task) = &e.agent_task {
+        lines.push(format!("task: {task}"));
+    }
     if e.source == Source::Agent {
         lines.push(
             "agent filters: @ all agents (configured sort), !agent, @workspace/status, /path"
@@ -985,6 +988,8 @@ mod tests {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            agent_kind: None,
+            agent_task: None,
             canonical: OnceLock::new(),
         }
     }

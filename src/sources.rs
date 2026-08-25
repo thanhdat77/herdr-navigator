@@ -107,6 +107,8 @@ fn workspaces_from_json(
                 action: EntryAction::FocusWorkspace { id: id.into() },
                 source_label: None,
                 search_terms,
+                agent_kind: None,
+                agent_task: None,
                 canonical: OnceLock::new(),
             });
         }
@@ -161,12 +163,23 @@ fn agents_from_json(
                 .unwrap_or(workspace_id);
             let path = PathBuf::from(cwd);
             let dir = basename(&path);
+            // A blank name must fall back to the kind; it would otherwise
+            // leave the title leading with an empty ` · ` segment.
+            let agent_name = p
+                .get("name")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty());
+            let task_title = p
+                .get("terminal_title_stripped")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty());
             let alias_terms: Vec<String> = aliases
                 .iter()
                 .filter(|alias| alias.matches(agent, workspace_label, cwd))
                 .map(|alias| alias.alias.clone())
                 .collect();
-            let title = format!("{agent} · {workspace_label} · {dir}");
+            let display_agent = agent_name.unwrap_or(agent);
+            let title = format!("{display_agent} · {workspace_label} · {dir}");
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -183,6 +196,12 @@ fn agents_from_json(
             if let Some(session) = p.pointer("/agent_session/value").and_then(|v| v.as_str()) {
                 search_terms.push(session.into());
             }
+            if let Some(name) = agent_name {
+                search_terms.push(name.into());
+            }
+            if let Some(task) = task_title {
+                search_terms.push(task.into());
+            }
             search_terms.extend(alias_terms);
             entries.push(Entry {
                 source: Source::Agent,
@@ -198,6 +217,8 @@ fn agents_from_json(
                 },
                 source_label: None,
                 search_terms,
+                agent_kind: Some(agent.into()),
+                agent_task: task_title.map(String::from),
                 canonical: OnceLock::new(),
             });
         }
@@ -268,6 +289,8 @@ pub(crate) fn collect_zoxide() -> Vec<Entry> {
                 action: EntryAction::FocusOrCreateDir,
                 source_label: None,
                 search_terms: vec![],
+                agent_kind: None,
+                agent_task: None,
                 canonical: OnceLock::new(),
             }
         })
@@ -301,6 +324,8 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            agent_kind: None,
+            agent_task: None,
             canonical: OnceLock::new(),
         });
     }
@@ -335,8 +360,9 @@ mod tests {
 
         let agent_json = serde_json::json!({"id":"cli:agent:list","result":{"type":"agent_list","agents":[
             {"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"58f4-session"},
-             "agent_status":"working","cwd":"/tmp","focused":true,"foreground_cwd":"/tmp","pane_id":"w43:p1",
-             "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
+             "agent_status":"working","cwd":"/tmp","focused":true,"foreground_cwd":"/tmp","name":"reviewer","pane_id":"w43:p1",
+             "revision":0,"tab_id":"w43:t1","terminal_id":"term_1",
+             "terminal_title_stripped":"◐ Fix buildSrc consumer surface","workspace_id":"w43"}]}});
         let agents = agents_from_json(&agent_json, &entries, &[]);
         assert_eq!(agents.len(), 1);
         assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
@@ -346,7 +372,35 @@ mod tests {
         ));
         assert!(agents[0].search_terms.contains(&"term_1".to_string()));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
+        assert!(agents[0].search_terms.contains(&"reviewer".to_string()));
+        // "stripped" means ANSI-stripped, not glyph-stripped.
+        assert!(agents[0]
+            .search_terms
+            .contains(&"◐ Fix buildSrc consumer surface".to_string()));
+        assert_eq!(
+            agents[0].agent_task.as_deref(),
+            Some("◐ Fix buildSrc consumer surface")
+        );
+        assert_eq!(agents[0].agent_kind.as_deref(), Some("claude"));
+        assert!(agents[0].title.starts_with("reviewer · "));
         assert!(agents[0].subtitle.starts_with("working"));
+    }
+
+    // Herdr omits `name` for unnamed agents; the kind has to carry the title.
+    #[test]
+    fn unnamed_and_blank_named_agents_fall_back_to_the_agent_kind() {
+        let agent_json = serde_json::json!({"id":"cli:agent:list","result":{"type":"agent_list","agents":[
+            {"agent":"opencode","agent_status":"idle","cwd":"/tmp","pane_id":"w1:p1","tab_id":"w1:t1",
+             "terminal_id":"term_1","workspace_id":"w1"},
+            {"agent":"codex","agent_status":"idle","cwd":"/tmp","name":"   ","pane_id":"w2:p1","tab_id":"w2:t1",
+             "terminal_id":"term_2","terminal_title_stripped":"  ","workspace_id":"w2"}]}});
+        let agents = agents_from_json(&agent_json, &[], &[]);
+
+        assert_eq!(agents.len(), 2);
+        assert!(agents[0].title.starts_with("opencode · "));
+        assert!(agents[1].title.starts_with("codex · "));
+        assert_eq!(agents[1].agent_task, None);
+        assert!(!agents[1].search_terms.iter().any(|t| t.trim().is_empty()));
     }
 
     #[test]

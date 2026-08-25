@@ -94,6 +94,8 @@ fn local_session_entry(session: ListedSession) -> Entry {
         },
         source_label: None,
         search_terms: vec!["local".into(), "session".into()],
+        agent_kind: None,
+        agent_task: None,
         canonical: OnceLock::new(),
     }
 }
@@ -118,6 +120,8 @@ fn manual_session_entry(config: &SessionEntryConfig) -> Entry {
         },
         source_label: None,
         search_terms,
+        agent_kind: None,
+        agent_task: None,
         canonical: OnceLock::new(),
     }
 }
@@ -138,6 +142,8 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
         action: EntryAction::OpenRemote { target },
         source_label: None,
         search_terms,
+        agent_kind: None,
+        agent_task: None,
         canonical: OnceLock::new(),
     })
 }

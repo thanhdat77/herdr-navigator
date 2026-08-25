@@ -669,13 +669,14 @@ fn status_text(entry: &Entry) -> String {
         .to_lowercase()
 }
 
+// `!` should reach an agent by either the name Herdr reports or its kind. The
+// title carries whichever one is displayed, so the kind is matched separately.
 fn agent_text(entry: &Entry) -> String {
-    entry
-        .title
-        .split('·')
-        .next()
-        .unwrap_or(&entry.title)
-        .to_string()
+    let displayed = entry.title.split('·').next().unwrap_or(&entry.title);
+    match entry.agent_kind.as_deref() {
+        Some(kind) => format!("{displayed} {kind}"),
+        None => displayed.to_string(),
+    }
 }
 
 fn workspace_text(entry: &Entry) -> String {
@@ -913,6 +914,8 @@ mod tests {
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
             search_terms: vec![],
+            agent_kind: None,
+            agent_task: None,
             canonical: OnceLock::new(),
         }
     }
@@ -968,6 +971,8 @@ mod tests {
             },
             source_label: None,
             search_terms: vec!["main ai dot".into()],
+            agent_kind: None,
+            agent_task: None,
             canonical: OnceLock::new(),
         }
     }
@@ -981,6 +986,20 @@ mod tests {
         assert!(!Query::parse("!codex").filters_match(&agent));
         assert!(!Query::parse("!dotfiles").filters_match(&agent));
         assert!(!Query::parse("!claude").filters_match(&entry(Source::Project, "/tmp", "claude")));
+    }
+
+    // A named agent's title leads with the operator-chosen name, so the agent
+    // kind must stay reachable from `!` or `!claude` silently drops every
+    // named agent.
+    #[test]
+    fn agent_token_matches_kind_and_name_for_named_agents() {
+        let mut named = agent_entry();
+        named.title = "reviewer · Dotfiles · dotfiles".into();
+        named.agent_kind = Some("claude".into());
+
+        assert!(Query::parse("!claude").filters_match(&named));
+        assert!(Query::parse("!reviewer").filters_match(&named));
+        assert!(!Query::parse("!codex").filters_match(&named));
     }
 
     #[test]
