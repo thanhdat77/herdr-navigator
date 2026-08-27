@@ -24,6 +24,7 @@ struct ListedSession {
     #[serde(default)]
     default: bool,
     session_dir: Option<String>,
+    socket_path: Option<String>,
 }
 
 pub(crate) fn collect_sessions(config: &Config) -> Vec<Entry> {
@@ -52,13 +53,20 @@ pub(crate) fn collect_remotes(config: &Config) -> Vec<Entry> {
 }
 
 fn collect_local_sessions() -> Vec<Entry> {
+    listed_sessions()
+        .into_iter()
+        .map(local_session_entry)
+        .collect()
+}
+
+fn listed_sessions() -> Vec<ListedSession> {
     let json = herdr_json(["session", "list", "--json"]).unwrap_or(Value::Null);
     let list: SessionList = serde_json::from_value(json.clone())
         .or_else(|_| {
             serde_json::from_value(json.pointer("/result").cloned().unwrap_or(Value::Null))
         })
         .unwrap_or(SessionList { sessions: vec![] });
-    list.sessions.into_iter().map(local_session_entry).collect()
+    list.sessions
 }
 
 fn local_session_entry(session: ListedSession) -> Entry {
@@ -148,7 +156,31 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
     })
 }
 
+fn refuse_nested_attach(
+    name: &str,
+    host_socket: &str,
+    sessions: &[ListedSession],
+) -> Result<(), String> {
+    let is_host = sessions
+        .iter()
+        .any(|session| session.name == name && session.socket_path.as_deref() == Some(host_socket));
+    if is_host {
+        Err(format!(
+            "session '{name}' hosts this navigator; attaching it here would nest herdr inside itself"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 pub(crate) fn attach_session(name: &str) -> Result<(), String> {
+    if let Some(host_socket) = env::var("HERDR_SOCKET_PATH")
+        .ok()
+        .filter(|socket| !socket.is_empty())
+    {
+        refuse_nested_attach(name, &host_socket, &listed_sessions())?;
+    }
+
     let status = herdr_attach_command()
         .args(["session", "attach", name])
         .status()
@@ -189,6 +221,60 @@ fn herdr_attach_command() -> Command {
 mod tests {
     use super::*;
 
+    fn listed(name: &str, socket_path: Option<&str>) -> ListedSession {
+        ListedSession {
+            name: name.into(),
+            running: true,
+            default: false,
+            session_dir: None,
+            socket_path: socket_path.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn attaching_the_host_session_is_refused() {
+        let sessions = [listed("default", Some("/sockets/herdr.sock"))];
+
+        let err = refuse_nested_attach("default", "/sockets/herdr.sock", &sessions).unwrap_err();
+
+        assert!(
+            err.contains("default"),
+            "error should name the session: {err}"
+        );
+    }
+
+    #[test]
+    fn attaching_a_different_session_is_allowed() {
+        let sessions = [
+            listed("default", Some("/sockets/herdr.sock")),
+            listed("work", Some("/sockets/herdr-work.sock")),
+        ];
+
+        assert!(refuse_nested_attach("work", "/sockets/herdr.sock", &sessions).is_ok());
+    }
+
+    #[test]
+    fn sessions_without_socket_path_do_not_block_attach() {
+        let sessions = [listed("default", None)];
+
+        assert!(refuse_nested_attach("default", "/sockets/herdr.sock", &sessions).is_ok());
+    }
+
+    #[test]
+    fn session_list_json_exposes_socket_path() {
+        let json = serde_json::json!({"sessions":[
+            {"name":"default","running":true,"default":true,
+             "session_dir":"/home/u/.config/herdr","socket_path":"/home/u/.config/herdr/herdr.sock"}
+        ]});
+
+        let list: SessionList = serde_json::from_value(json).unwrap();
+
+        assert_eq!(
+            list.sessions[0].socket_path.as_deref(),
+            Some("/home/u/.config/herdr/herdr.sock")
+        );
+    }
+
     #[test]
     fn local_session_entry_attaches_by_name() {
         let entry = local_session_entry(ListedSession {
@@ -196,6 +282,7 @@ mod tests {
             running: true,
             default: false,
             session_dir: Some("/tmp/herdr-work".into()),
+            socket_path: None,
         });
 
         assert_eq!(entry.source, Source::Session);

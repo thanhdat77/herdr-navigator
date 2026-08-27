@@ -8,6 +8,9 @@ All notable changes to this project are documented here.
 - Agent rows show the current terminal task when Herdr provides one, alongside fuzzy search and Preview support.
 - Navigator-specific `[theme].name` and `[theme.custom]` overrides. Navigator layers inherited Herdr custom tokens beneath its own custom tokens ([#20](https://github.com/thanhdat77/herdr-navigator/issues/20)).
 
+### Fixed
+- Refuse to attach the session that hosts the navigator; the nested client used to mirror the UI into itself and continuously fight over the terminal size ([#38](https://github.com/thanhdat77/herdr-navigator/issues/38)).
+
 ## [0.3.6] - 2026-08-11
 
 ### Added
