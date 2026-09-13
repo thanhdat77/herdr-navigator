@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     config::Config,
-    herdr::{herdr_json, notify_done, notify_error, run_herdr, run_herdr_quiet},
+    herdr::{focus_agent, herdr_json, notify_done, notify_error, run_herdr, run_herdr_quiet},
     integrations::{command, herdr_plus, sessions},
     matcher::Scorer,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
@@ -313,8 +313,8 @@ impl App {
             None
         };
         let (result, notify_success, notify_failure) = match &e.action {
-            EntryAction::FocusAgent { target } => {
-                (run_herdr(["agent", "focus", target]), true, true)
+            EntryAction::FocusAgent { pane_id, tab_id } => {
+                (focus_agent(pane_id, tab_id), true, true)
             }
             EntryAction::FocusWorkspace { id } => {
                 (run_herdr(["workspace", "focus", id]), true, true)
@@ -857,7 +857,7 @@ fn herdr_agent_panel_sort() -> String {
 fn pin_key(entry: &Entry) -> String {
     match &entry.action {
         EntryAction::FocusWorkspace { id } => format!("workspace:{id}"),
-        EntryAction::FocusAgent { target } => format!("agent:{target}"),
+        EntryAction::FocusAgent { pane_id, .. } => format!("agent:{pane_id}"),
         EntryAction::OpenProject => format!("project:{}", entry.key()),
         EntryAction::OpenRemote { target } => format!("remote:{target}"),
         EntryAction::AttachSession { name, remote } => {
@@ -964,10 +964,11 @@ mod tests {
             path: PathBuf::from("/home/fenix/dotfiles"),
             workspace_id: Some("wF".into()),
             workspace_label: Some("Dotfiles".into()),
-            agent_target: Some("term_1".into()),
+            agent_target: Some("wF:p2".into()),
             project: None,
             action: EntryAction::FocusAgent {
-                target: "term_1".into(),
+                pane_id: "wF:p2".into(),
+                tab_id: "wF:t2".into(),
             },
             source_label: None,
             search_terms: vec!["main ai dot".into()],
