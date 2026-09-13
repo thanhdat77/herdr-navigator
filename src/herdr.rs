@@ -33,6 +33,22 @@ pub(crate) fn run_herdr<const N: usize>(args: [&str; N]) -> Result<(), String> {
     }
 }
 
+/// Focus an agent and project its selected pane to attached Herdr clients.
+pub(crate) fn focus_agent(pane_id: &str, tab_id: &str) -> Result<(), String> {
+    focus_agent_with(pane_id, tab_id, run_herdr)
+}
+
+fn focus_agent_with(
+    pane_id: &str,
+    tab_id: &str,
+    mut run: impl FnMut([&str; 3]) -> Result<(), String>,
+) -> Result<(), String> {
+    // Herdr 0.9.0 changes server focus without moving attached clients.
+    // Tab focus moves clients and keeps the pane that agent focus selected.
+    run(["agent", "focus", pane_id])?;
+    run(["tab", "focus", tab_id])
+}
+
 pub(crate) fn run_herdr_quiet<const N: usize>(args: [&str; N]) -> Result<(), String> {
     let mut command = Command::new(herdr_bin());
     command.args(args);
@@ -174,5 +190,26 @@ mod tests {
         command.args(["-c", "printf ignored; printf failure >&2; exit 7"]);
 
         assert_eq!(run_command_quiet(&mut command), Err("failure".into()));
+    }
+
+    // Herdr 0.9.0 changes server focus but does not move attached clients.
+    // A tab focus projects the selected pane after agent focus sets it.
+    #[test]
+    fn agent_focus_projects_the_selected_pane_through_its_tab() {
+        let mut calls = Vec::new();
+
+        focus_agent_with("w1:p2", "w1:t3", |args| {
+            calls.push(args.map(String::from));
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(
+            calls,
+            [
+                ["agent", "focus", "w1:p2"].map(String::from),
+                ["tab", "focus", "w1:t3"].map(String::from),
+            ]
+        );
     }
 }

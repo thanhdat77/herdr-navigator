@@ -70,7 +70,8 @@ pub(crate) enum EntryAction {
         id: String,
     },
     FocusAgent {
-        target: String,
+        pane_id: String,
+        tab_id: String,
     },
     OpenProject,
     OpenRemote {
