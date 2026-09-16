@@ -38,6 +38,11 @@ agent_sort = "herdr"
 # Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
 preview = true
 
+# Render the actual terminal pane content in the preview instead of meta
+# information (type, title, path). Requires `herdr pane read` support.
+# Only works for workspaces and agent panes inside the current herdr session.
+live_preview = false
+
 # Use Herdr-style source-aware rows: metadata aligns right, while zoxide/root
 # entries expand to a second full-path line. Set false for the compact list.
 detailed_rows = true

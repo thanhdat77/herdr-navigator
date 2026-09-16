@@ -21,6 +21,18 @@ pub(crate) fn herdr_json<const N: usize>(args: [&str; N]) -> Result<Value, Strin
     }
     serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
 }
+
+pub(crate) fn read_pane_ansi(pane_id: &str) -> Result<String, String> {
+    let out = Command::new(herdr_bin())
+        .args(["pane", "read", pane_id, "--format", "ansi"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
 pub(crate) fn run_herdr<const N: usize>(args: [&str; N]) -> Result<(), String> {
     let status = Command::new(herdr_bin())
         .args(args)

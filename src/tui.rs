@@ -1,9 +1,10 @@
 use std::{
     io,
     sync::mpsc::{Receiver, TryRecvError},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
+use ansi_to_tui::IntoText;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
@@ -14,21 +15,26 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
+    buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Widget},
     Frame, Terminal,
 };
+use unicode_width::UnicodeWidthChar;
 
 use crate::{
     app::{App, InputMode},
+    herdr,
     keymap::{keybindings, Command},
     model::{Entry, EntryAction, Source},
     paths::home,
     sources::status_icon_at,
     theme::Theme,
 };
+
+const PREVIEW_CACHE_DURATION: Duration = Duration::from_secs(2);
 
 pub(crate) fn tui_loop(
     app: &mut App,
@@ -71,12 +77,19 @@ pub(crate) fn tui_loop(
                 // leave the TUI while the action runs: herdr CLI output goes to
                 // the normal screen instead of corrupting the alternate screen
                 cleanup_terminal(&mut terminal)?;
+                let should_quit = matches!(action, Action::Open)
+                    && app.selected_entry().is_some_and(|e| {
+                        matches!(
+                            &e.action,
+                            EntryAction::AttachSession { .. } | EntryAction::OpenRemote { .. }
+                        )
+                    });
                 let outcome = app.open_selected(matches!(action, Action::OpenTemplate));
                 if let Err(e) = outcome {
                     eprintln!("{e}");
                     wait_for_key();
                 }
-                if !persist {
+                if !persist || should_quit {
                     return Ok(());
                 }
                 app.refresh();
@@ -97,9 +110,9 @@ pub(crate) fn tui_loop(
                             Err(error) => eprintln!("Update failed: {error}"),
                         }
                         wait_for_key();
-                        return Ok(());
                     }
                 }
+                app.refresh();
                 enable_raw_mode()?;
                 execute!(
                     terminal.backend_mut(),
@@ -854,73 +867,156 @@ fn draw_preview(f: &mut Frame, app: &App, area: Rect) {
     let text = if let Some(e) = app.selected_entry() {
         preview_text(app, e)
     } else {
-        "No results".into()
+        Text::raw("No results")
     };
-    let p = Paragraph::new(text)
-        .style(Style::default().fg(app.theme.text))
-        .wrap(Wrap { trim: false })
-        .block(
-            Block::default()
-                .title(" Preview ")
-                .borders(Borders::LEFT)
-                .border_style(Style::default().fg(app.theme.surface_dim)),
-        );
-    f.render_widget(p, area);
+    f.render_widget(RawPane { text, block: None }, area);
 }
 
-fn preview_text(app: &App, e: &Entry) -> String {
-    let mut lines = vec![
-        format!("type: {}", e.source_name()),
-        format!("title: {}", e.title),
-        format!("path: {}", e.path.display()),
-    ];
+/// A ratatui widget that renders terminal pane content at full width,
+/// clipped to the given area. Each terminal row stays on its own line
+/// with no wrapping; the preview acts like a terminal viewport.
+struct RawPane<'a> {
+    text: Text<'a>,
+    block: Option<Block<'a>>,
+}
+
+impl Widget for RawPane<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let area = if let Some(block) = &self.block {
+            block.clone().render(area, buf);
+            block.inner(area)
+        } else {
+            area
+        };
+
+        let max_col = (area.right() - area.left()) as usize;
+
+        for (y, line) in (area.top()..).zip(self.text.lines.iter()) {
+            if y >= area.bottom() {
+                break;
+            }
+            let mut col = 0;
+            for span in &line.spans {
+                for c in span.content.chars() {
+                    if col >= max_col {
+                        break;
+                    }
+                    let width = c.width().unwrap_or(1);
+                    let pos = (area.left() + col as u16, y);
+                    buf[pos].set_char(c);
+                    buf[pos].set_style(span.style);
+                    if width > 1 {
+                        for w in 1..width {
+                            if col + w >= max_col {
+                                break;
+                            }
+                            let skip_pos = (area.left() + (col + w) as u16, y);
+                            buf[skip_pos]
+                                .set_char(' ')
+                                .set_diff_option(ratatui::buffer::CellDiffOption::Skip);
+                        }
+                    }
+                    col += width;
+                }
+            }
+        }
+    }
+}
+
+fn preview_text(app: &App, e: &Entry) -> Text<'static> {
+    if !app.config.picker.live_preview {
+        return preview_meta(app, e);
+    }
+
+    let pane_id = match (&e.source, &e.focused_pane_id) {
+        (_, Some(id)) if !id.is_empty() => id.clone(),
+        (Source::Agent, _) => e.agent_target.clone().unwrap_or_default(),
+        _ => return preview_meta(app, e),
+    };
+
+    if pane_id.is_empty() {
+        return preview_meta(app, e);
+    }
+
+    let now = Instant::now();
+    let mut cache = app.preview_cache.borrow_mut();
+
+    if let Some((cached_id, cached_text, timestamp)) = cache.as_ref() {
+        if cached_id == &pane_id && now.duration_since(*timestamp) < PREVIEW_CACHE_DURATION {
+            return cached_text.clone();
+        }
+    }
+
+    let ansi_output = match herdr::read_pane_ansi(&pane_id) {
+        Ok(out) => out,
+        Err(_) => return preview_meta(app, e),
+    };
+
+    let maybe_text = ansi_output.as_str().into_text();
+    match maybe_text {
+        Ok(text) => {
+            let text_clone = text.clone();
+            *cache = Some((pane_id, text_clone, now));
+            text
+        }
+        Err(_) => preview_meta(app, e),
+    }
+}
+
+fn preview_meta(app: &App, e: &Entry) -> Text<'static> {
+    let mut lines = vec![Line::from(format!("type: {}", e.source_name()))];
+    lines.push(Line::from(format!("title: {}", e.title)));
+    lines.push(Line::from(format!("path: {}", e.path.display())));
+
     if !e.subtitle.is_empty() {
-        lines.push(format!("info: {}", e.subtitle));
+        lines.push(Line::from(format!("info: {}", e.subtitle)));
     }
     if let Some(label) = &e.workspace_label {
-        lines.push(format!("workspace: {label}"));
+        lines.push(Line::from(format!("workspace: {label}")));
     }
     if let Some(id) = &e.workspace_id {
-        lines.push(format!("workspace_id: {id}"));
+        lines.push(Line::from(format!("workspace_id: {id}")));
     }
     if let Some(target) = &e.agent_target {
-        lines.push(format!("agent target: {target}"));
+        lines.push(Line::from(format!("agent target: {target}")));
     }
     if let Some(task) = &e.agent_task {
-        lines.push(format!("task: {task}"));
+        lines.push(Line::from(format!("task: {task}")));
     }
     if e.source == Source::Agent {
-        lines.push(
-            "agent filters: @ all agents (configured sort), !agent, @workspace/status, /path"
-                .into(),
-        );
+        lines.push(Line::from(
+            "agent filters: @ all agents (configured sort), !agent, @workspace/status, /path",
+        ));
     }
     if !e.search_terms.is_empty() {
-        lines.push(format!("search terms: {}", e.search_terms.join(", ")));
+        lines.push(Line::from(format!(
+            "search terms: {}",
+            e.search_terms.join(", ")
+        )));
     }
     let workspaces = app.workspaces_for_entry(e);
     if !workspaces.is_empty() {
-        lines.push("existing workspaces:".into());
+        lines.push(Line::from("existing workspaces:"));
         for ws in workspaces {
-            lines.push(format!(
+            lines.push(Line::from(format!(
                 "  - {} [{}] tabs:{} panes:{} {}",
                 ws.id,
                 ws.label,
                 ws.tab_count,
                 ws.pane_count,
                 ws.path.display()
-            ));
+            )));
         }
     }
     if let Some(p) = &e.project {
-        lines.push("".into());
-        lines.push("project tabs:".into());
+        lines.push(Line::from(""));
+        lines.push(Line::from("project tabs:"));
         for tab in &p.tabs {
             let cmd = tab.command.as_deref().unwrap_or("shell");
-            lines.push(format!("  - {}: {}", tab.name, cmd));
+            lines.push(Line::from(format!("  - {}: {}", tab.name, cmd)));
         }
     }
-    lines.push("".into());
+    lines.push(Line::from(""));
     let action: &str = match &e.action {
         EntryAction::FocusWorkspace { .. } => "focus existing workspace",
         EntryAction::FocusAgent { .. } => "focus agent pane",
@@ -938,14 +1034,14 @@ fn preview_text(app: &App, e: &Entry) -> String {
         }
         EntryAction::FocusOrCreateDir => "create dir workspace",
     };
-    lines.push(format!("enter: {action}"));
+    lines.push(Line::from(format!("enter: {action}")));
     if let Some(template) = app.directory_template_for_selected() {
-        lines.push(format!(
+        lines.push(Line::from(format!(
             "{}: apply template {template}",
             app.config.picker.directory_template_key
-        ));
+        )));
     }
-    lines.join("\n")
+    Text::from(lines)
 }
 
 fn source_color(theme: &Theme, source: &Source) -> Color {
@@ -984,6 +1080,7 @@ mod tests {
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
+            focused_pane_id: None,
             project: None,
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
@@ -1637,5 +1734,14 @@ mod tests {
 
         handle_key(&mut app, key(KeyCode::Esc));
         assert_eq!(app.input_mode, InputMode::Normal);
+    }
+
+    #[test]
+    fn ansi_content_converts_to_text() {
+        let ansi: &str = "\x1b[38;2;200;211;245mHello\x1b[0m\x1b[38;2;99;109;166m World\x1b[0m";
+        let text = ansi.into_text();
+        assert!(text.is_ok(), "into_text should succeed");
+        let text = text.unwrap();
+        assert!(text.lines.len() > 0, "text should have at least one line");
     }
 }

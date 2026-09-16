@@ -1,8 +1,12 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     env, fs,
     path::Path,
+    time::Instant,
 };
+
+use ratatui::text::Text;
 
 use crate::{
     config::Config,
@@ -49,6 +53,8 @@ pub(crate) struct App {
     pub(crate) pinned_entries: HashSet<String>,
     pub(crate) spinner_tick: u32,
     pub(crate) update_available: Option<String>,
+    // Cache for live pane preview: stores (pane_target, rendered_text, timestamp).
+    pub(crate) preview_cache: RefCell<Option<(String, Text<'static>, Instant)>>,
 }
 
 impl App {
@@ -71,6 +77,7 @@ impl App {
             pinned_entries: HashSet::new(),
             spinner_tick: 0,
             update_available: None,
+            preview_cache: RefCell::new(None),
         }
     }
 
@@ -910,6 +917,7 @@ mod tests {
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
+            focused_pane_id: None,
             project: None,
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
@@ -965,6 +973,7 @@ mod tests {
             workspace_id: Some("wF".into()),
             workspace_label: Some("Dotfiles".into()),
             agent_target: Some("term_1".into()),
+            focused_pane_id: Some("wF:p2".into()),
             project: None,
             action: EntryAction::FocusAgent {
                 target: "term_1".into(),
@@ -1159,11 +1168,19 @@ mod tests {
     #[test]
     fn source_specific_reuse_distinguishes_same_path_workspaces() {
         let mut app = App::new(Config::default(), Theme::load(None, None, false));
+        let canonical_path = std::fs::canonicalize(std::path::Path::new("/tmp"))
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "/private/tmp".to_string());
         app.path_to_workspaces.insert(
-            "/tmp".into(),
+            canonical_path.clone(),
             vec![
-                workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
-                workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
+                workspace(
+                    "w1",
+                    "project: tmp",
+                    WorkspaceKind::Project,
+                    &canonical_path,
+                ),
+                workspace("w2", "dir: tmp", WorkspaceKind::Dir, &canonical_path),
             ],
         );
 
@@ -1190,9 +1207,17 @@ mod tests {
 
         assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
 
+        let canonical_tmp = std::fs::canonicalize(std::path::Path::new("/tmp"))
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "/private/tmp".to_string());
         app.path_to_workspaces.insert(
-            "/tmp".into(),
-            vec![workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp")],
+            canonical_tmp.clone(),
+            vec![workspace(
+                "w2",
+                "dir: tmp",
+                WorkspaceKind::Dir,
+                &canonical_tmp,
+            )],
         );
         assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
 
@@ -1200,16 +1225,18 @@ mod tests {
         assert_eq!(app.directory_template_for_selected(), Some("default.toml"));
 
         app.path_to_workspaces.insert(
-            "/tmp".into(),
+            canonical_tmp.clone(),
             vec![workspace(
                 "w1",
                 "project: tmp",
                 WorkspaceKind::Project,
-                "/tmp",
+                &canonical_tmp,
             )],
         );
         assert_eq!(
-            app.matching_template_workspace_by_key("/tmp").unwrap().id,
+            app.matching_template_workspace_by_key(&canonical_tmp)
+                .unwrap()
+                .id,
             "w1"
         );
     }
@@ -1217,11 +1244,19 @@ mod tests {
     #[test]
     fn close_target_matches_entry_kind() {
         let mut app = App::new(Config::default(), Theme::load(None, None, false));
+        let canonical_path = std::fs::canonicalize(std::path::Path::new("/tmp"))
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "/private/tmp".to_string());
         app.path_to_workspaces.insert(
-            "/tmp".into(),
+            canonical_path.clone(),
             vec![
-                workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
-                workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
+                workspace(
+                    "w1",
+                    "project: tmp",
+                    WorkspaceKind::Project,
+                    &canonical_path,
+                ),
+                workspace("w2", "dir: tmp", WorkspaceKind::Dir, &canonical_path),
             ],
         );
 
