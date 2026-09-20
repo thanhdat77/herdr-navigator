@@ -223,6 +223,7 @@ source_order = ["workspace", "agent", "project", "session", "zoxide", "root", "s
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
+live_preview = true # enable live TUI preview of the open elements
 detailed_rows = true # source-aware Herdr-style result rows
 check_updates = true # daily background release check
 # directory_template = "default.toml" # Herdr Plus project file
@@ -271,6 +272,7 @@ Useful config surfaces:
 - `[sessions]` controls local sessions and manual remote targets.
 - `[theme]` can select a supported Navigator palette with `theme.name`. With `inherit_herdr = true`, Navigator uses Herdr's configured palette when `theme.name` is unset. If Navigator selects the base palette, inherited Herdr `[theme.custom]` tokens are applied next, then Navigator `[theme.custom]` tokens win. Missing or invalid inherited config falls back to Catppuccin; disabled inheritance with no Navigator name falls back to One Light.
 - `[[integrations]]` adds external command/JSON sources.
+- `picker.live_preview` enables cropped live TUI rendering in the picker's preview for compatible elements (open, agents)
 
 ## Add your own source
 

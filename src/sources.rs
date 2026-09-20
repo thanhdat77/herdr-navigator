@@ -22,6 +22,8 @@ pub(crate) fn collect_workspaces(
     let ws_json = herdr_json(["workspace", "list"]).unwrap_or(Value::Null);
     let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
     let mut cwd_by_ws: HashMap<String, String> = HashMap::new();
+    let mut panes_by_ws: HashMap<String, Vec<String>> = HashMap::new();
+    let mut focused_by_ws: HashMap<String, String> = HashMap::new();
     if let Some(panes) = pane_json
         .pointer("/result/panes")
         .and_then(|v| v.as_array())
@@ -38,15 +40,25 @@ pub(crate) fn collect_workspaces(
             if !cwd.is_empty() {
                 cwd_by_ws.entry(ws.into()).or_insert(cwd.into());
             }
+            if p.get("focused").and_then(|v| v.as_bool()).unwrap_or(false) {
+                if let Some(pid) = p.get("pane_id").and_then(|v| v.as_str()) {
+                    focused_by_ws.insert(ws.into(), pid.into());
+                }
+            }
+            if let Some(pid) = p.get("pane_id").and_then(|v| v.as_str()) {
+                panes_by_ws.entry(ws.into()).or_default().push(pid.into());
+            }
         }
     }
-    workspaces_from_json(&ws_json, &cwd_by_ws, snapshot)
+    workspaces_from_json(&ws_json, &cwd_by_ws, snapshot, &panes_by_ws, &focused_by_ws)
 }
 
 fn workspaces_from_json(
     ws_json: &Value,
     cwd_by_ws: &HashMap<String, String>,
     snapshot: &mut NavigatorSnapshot,
+    panes_by_ws: &HashMap<String, Vec<String>>,
+    focused_by_ws: &HashMap<String, String>,
 ) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
     let has_live_workspace_list = ws_json
         .pointer("/result/workspaces")
@@ -95,6 +107,10 @@ fn workspaces_from_json(
             if focused {
                 search_terms.push("focused".into());
             }
+            let focused_pane_id = focused_by_ws
+                .get(id)
+                .or_else(|| panes_by_ws.get(id).and_then(|v| v.first()))
+                .cloned();
             entries.push(Entry {
                 source: Source::Workspace,
                 title: label.into(),
@@ -103,6 +119,7 @@ fn workspaces_from_json(
                 workspace_id: Some(id.into()),
                 workspace_label: Some(label.into()),
                 agent_target: None,
+                focused_pane_id,
                 project: None,
                 action: EntryAction::FocusWorkspace { id: id.into() },
                 source_label: None,
@@ -146,7 +163,7 @@ fn agents_from_json(
             let tab = p.get("tab_id").and_then(|v| v.as_str()).unwrap_or("");
             let term = p.get("terminal_id").and_then(|v| v.as_str()).unwrap_or("");
             // Herdr's `agent focus` accepts pane IDs, not terminal IDs.
-            let target = pane;
+            let _target = pane;
             let cwd = p.get("cwd").and_then(|v| v.as_str()).unwrap_or("/");
             let foreground_cwd = p
                 .get("foreground_cwd")
@@ -213,10 +230,11 @@ fn agents_from_json(
                 path,
                 workspace_id: (!workspace_id.is_empty()).then(|| workspace_id.into()),
                 workspace_label: Some(workspace_label.into()),
-                agent_target: Some(target.into()),
+                agent_target: Some(pane.into()),
+                focused_pane_id: Some(pane.into()),
                 project: None,
                 action: EntryAction::FocusAgent {
-                    target: target.into(),
+                    target: pane.into(),
                 },
                 source_label: None,
                 search_terms,
@@ -288,6 +306,7 @@ pub(crate) fn collect_zoxide() -> Vec<Entry> {
                 workspace_id: None,
                 workspace_label: None,
                 agent_target: None,
+                focused_pane_id: None,
                 project: None,
                 action: EntryAction::FocusOrCreateDir,
                 source_label: None,
@@ -323,6 +342,7 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
+            focused_pane_id: None,
             project: None,
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
@@ -352,8 +372,13 @@ mod tests {
         let ws_json = serde_json::json!({"id":"cli:workspace:list","result":{"type":"workspace_list","workspaces":[
             {"active_tab_id":"w41:t1","agent_status":"unknown","focused":false,"label":"~","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w41"},
             {"active_tab_id":"w43:t1","agent_status":"working","focused":true,"label":"dir: picker","number":3,"pane_count":1,"tab_count":1,"workspace_id":"w43"}]}});
-        let (entries, _, _, _) =
-            workspaces_from_json(&ws_json, &HashMap::new(), &mut NavigatorSnapshot::default());
+        let (entries, _, _, _) = workspaces_from_json(
+            &ws_json,
+            &HashMap::new(),
+            &mut NavigatorSnapshot::default(),
+            &HashMap::new(),
+            &HashMap::new(),
+        );
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].subtitle, "agent:unknown · w41 tabs:1 panes:1");
         assert!(entries[0].search_terms.contains(&"unknown".to_string()));
@@ -374,6 +399,7 @@ mod tests {
             EntryAction::FocusAgent { target } if target == "w43:p1"
         ));
         assert!(agents[0].search_terms.contains(&"term_1".to_string()));
+        assert_eq!(agents[0].focused_pane_id.as_deref(), Some("w43:p1"));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
         assert!(agents[0].search_terms.contains(&"reviewer".to_string()));
         // "stripped" means ANSI-stripped, not glyph-stripped.
@@ -415,17 +441,28 @@ mod tests {
             {"workspace_id":"w1","label":"renamed","tab_count":1,"pane_count":1},
             {"workspace_id":"w2","label":"project: legacy","tab_count":1,"pane_count":1}
         ]}});
-        let cwd_by_ws = HashMap::from([("w1".into(), "/tmp".into()), ("w2".into(), "/tmp".into())]);
+        let canonical_tmp = std::fs::canonicalize(std::path::Path::new("/tmp"))
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| "/private/tmp".to_string());
+        let cwd_by_ws = HashMap::from([
+            ("w1".into(), canonical_tmp.clone()),
+            ("w2".into(), canonical_tmp.clone()),
+        ]);
         let mut snapshot = NavigatorSnapshot::default();
         snapshot.record("w1", crate::model::WorkspaceKind::Dir);
 
-        let (_, workspaces, migrated, live) =
-            workspaces_from_json(&ws_json, &cwd_by_ws, &mut snapshot);
+        let (_, workspaces, migrated, live) = workspaces_from_json(
+            &ws_json,
+            &cwd_by_ws,
+            &mut snapshot,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
 
         assert!(live);
 
         assert!(migrated);
-        let workspaces = workspaces.get("/tmp").unwrap();
+        let workspaces = workspaces.get(&canonical_tmp).unwrap();
         assert!(matches!(
             workspaces[0].kind,
             crate::model::WorkspaceKind::Dir

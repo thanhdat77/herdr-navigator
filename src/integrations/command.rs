@@ -71,6 +71,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
+        focused_pane_id: None,
         project: None,
         action: EntryAction::RunCommand {
             command,

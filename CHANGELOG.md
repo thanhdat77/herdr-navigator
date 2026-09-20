@@ -7,6 +7,7 @@ All notable changes to this project are documented here.
 ### Added
 - Agent rows show the current terminal task when Herdr provides one, alongside fuzzy search and Preview support.
 - Navigator-specific `[theme].name` and `[theme.custom]` overrides. Navigator layers inherited Herdr custom tokens beneath its own custom tokens ([#20](https://github.com/thanhdat77/herdr-navigator/issues/20)).
+- `picker.live_preview` enables cropped live TUI rendering in the picker's preview. When enabled, the preview pane shows the actual terminal buffer of the selected workspace or agent pane with full ANSI color support instead of static metadata.
 
 ## [0.3.6] - 2026-08-11
 

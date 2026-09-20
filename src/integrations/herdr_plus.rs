@@ -35,6 +35,7 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
             workspace_id: None,
             workspace_label: None,
             agent_target: None,
+            focused_pane_id: None,
             project: Some(project),
             action: EntryAction::OpenProject,
             source_label: None,
@@ -81,6 +82,7 @@ pub(crate) fn quick_actions_entry() -> Entry {
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
+        focused_pane_id: None,
         project: None,
         action: EntryAction::InvokePluginAction {
             action: "cloudmanic.herdr-plus.quick-actions".into(),

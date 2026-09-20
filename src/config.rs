@@ -47,8 +47,13 @@ pub(crate) struct PickerConfig {
     pub(crate) source_priority_boost: i64,
     #[serde(default = "default_agent_sort")]
     pub(crate) agent_sort: String,
-    #[serde(default = "yes")]
+    #[serde(default)]
     pub(crate) preview: bool,
+    // Render live terminal content in the preview pane via `herdr pane read`.
+    // When enabled, the preview shows the actual terminal buffer of the selected
+    // workspace/agent pane with full ANSI color support. Only works inside herdr.
+    #[serde(default)]
+    pub(crate) live_preview: bool,
     #[serde(default = "yes")]
     pub(crate) detailed_rows: bool,
     #[serde(default = "yes")]
@@ -270,6 +275,7 @@ impl Default for PickerConfig {
             source_priority_boost: default_source_priority_boost(),
             agent_sort: default_agent_sort(),
             preview: true,
+            live_preview: false,
             detailed_rows: true,
             check_updates: true,
             directory_template: None,
@@ -554,6 +560,21 @@ mod tests {
             config.theme.custom.get("accent").map(String::as_str),
             Some("#ff00ff")
         );
+    }
+
+    #[test]
+    fn live_preview_defaults_off_and_can_be_enabled() {
+        assert!(!Config::default().picker.live_preview);
+
+        let config: Config = toml::from_str(
+            r#"
+            [picker]
+            live_preview = true
+            "#,
+        )
+        .unwrap();
+
+        assert!(config.picker.live_preview);
     }
 
     #[test]

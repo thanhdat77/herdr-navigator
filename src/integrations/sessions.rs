@@ -87,6 +87,7 @@ fn local_session_entry(session: ListedSession) -> Entry {
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
+        focused_pane_id: None,
         project: None,
         action: EntryAction::AttachSession {
             name: session.name,
@@ -113,6 +114,7 @@ fn manual_session_entry(config: &SessionEntryConfig) -> Entry {
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
+        focused_pane_id: None,
         project: None,
         action: EntryAction::AttachSession {
             name: session.into(),
@@ -138,6 +140,7 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
         workspace_id: None,
         workspace_label: None,
         agent_target: None,
+        focused_pane_id: None,
         project: None,
         action: EntryAction::OpenRemote { target },
         source_label: None,
