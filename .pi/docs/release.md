@@ -19,6 +19,7 @@ cargo build --release
 
 Release workflow builds archives:
 - `herdr-navigator-linux-x86_64.tar.gz`
+- `herdr-navigator-linux-aarch64.tar.gz`
 - `herdr-navigator-macos-aarch64.tar.gz`
 
 ## Avoid
