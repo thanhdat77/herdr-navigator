@@ -46,7 +46,11 @@ fn focus_agent_with(
     // Herdr 0.9.0 changes server focus without moving attached clients.
     // Tab focus moves clients and keeps the pane that agent focus selected.
     run(["agent", "focus", pane_id])?;
-    run(["tab", "focus", tab_id])
+    if tab_id.is_empty() {
+        Ok(())
+    } else {
+        run(["tab", "focus", tab_id])
+    }
 }
 
 pub(crate) fn run_herdr_quiet<const N: usize>(args: [&str; N]) -> Result<(), String> {
@@ -194,6 +198,19 @@ mod tests {
 
     // Herdr 0.9.0 changes server focus but does not move attached clients.
     // A tab focus projects the selected pane after agent focus sets it.
+    #[test]
+    fn agent_focus_without_a_tab_still_succeeds() {
+        let mut calls = Vec::new();
+
+        focus_agent_with("w1:p2", "", |args| {
+            calls.push(args.map(String::from));
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(calls, [["agent", "focus", "w1:p2"].map(String::from)]);
+    }
+
     #[test]
     fn agent_focus_projects_the_selected_pane_through_its_tab() {
         let mut calls = Vec::new();
