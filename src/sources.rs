@@ -237,7 +237,8 @@ fn agents_from_json(
                 agent_target: Some(target.into()),
                 project: None,
                 action: EntryAction::FocusAgent {
-                    target: target.into(),
+                    pane_id: target.into(),
+                    tab_id: tab.into(),
                 },
                 source_label: None,
                 search_terms,
@@ -396,7 +397,8 @@ mod tests {
         assert_eq!(agents[0].agent_target.as_deref(), Some("w43:p1"));
         assert!(matches!(
             &agents[0].action,
-            EntryAction::FocusAgent { target } if target == "w43:p1"
+            EntryAction::FocusAgent { pane_id, tab_id }
+                if pane_id == "w43:p1" && tab_id == "w43:t1"
         ));
         assert!(agents[0].search_terms.contains(&"term_1".to_string()));
         assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
