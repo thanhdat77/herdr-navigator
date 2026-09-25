@@ -551,17 +551,22 @@ fn entry_status(entry: &Entry) -> Option<&str> {
 
 fn entry_metadata(entry: &Entry) -> String {
     match entry.source {
-        Source::Agent => {
-            let metadata = entry
-                .subtitle
-                .split_once(" · ")
-                .map(|(_, metadata)| metadata)
-                .unwrap_or("");
-            metadata
-                .split_once(" · ")
-                .map(|(pane, tab)| format!("{tab} · {pane}"))
-                .unwrap_or_else(|| metadata.to_string())
-        }
+        Source::Agent => entry
+            .workspace_label
+            .as_deref()
+            .filter(|label| !label.trim().is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                let metadata = entry
+                    .subtitle
+                    .split_once(" · ")
+                    .map(|(_, metadata)| metadata)
+                    .unwrap_or("");
+                metadata
+                    .split_once(" · ")
+                    .map(|(pane, tab)| format!("{tab} · {pane}"))
+                    .unwrap_or_else(|| metadata.to_string())
+            }),
         Source::Workspace => {
             let metadata = entry
                 .subtitle
@@ -1184,6 +1189,7 @@ mod tests {
         workspace.subtitle = "agent:blocked · w1 tabs:2 panes:3".into();
         let mut agent = entry(Source::Agent, "claude · demo");
         agent.subtitle = "working · w1:p2 · w1:t1".into();
+        agent.workspace_label = Some("dotfiles".into());
         let mut root = entry(Source::Root, "root-demo");
         root.path = PathBuf::from("/projects/root-demo");
         root.subtitle = "/projects/root-demo".into();
@@ -1208,8 +1214,20 @@ mod tests {
         assert!(!text.contains("/work/demo"));
         assert!(!workspace_line.contains("demo  blocked"));
         assert!(workspace_line.find("blocked · 2 tabs · 3 panes").unwrap() > 50);
-        assert!(agent_line.find("working · w1:t1 · w1:p2").unwrap() > 50);
+        assert!(agent_line.find("working · dotfiles").unwrap() > 50);
+        assert!(!agent_line.contains("w1:t1"));
+        assert!(preview_text(&app, &app.entries[1]).contains("w1:p2 · w1:t1"));
+        assert_eq!(entry_metadata(&app.entries[1]), "dotfiles");
         assert!(text.contains("/projects/root-demo"));
+    }
+
+    #[test]
+    fn agent_metadata_falls_back_to_ids_without_a_workspace_label() {
+        let mut agent = entry(Source::Agent, "claude");
+        agent.subtitle = "working · w1:p2 · w1:t1".into();
+        assert_eq!(entry_metadata(&agent), "w1:t1 · w1:p2");
+        agent.workspace_label = Some("  ".into());
+        assert_eq!(entry_metadata(&agent), "w1:t1 · w1:p2");
     }
 
     #[test]
