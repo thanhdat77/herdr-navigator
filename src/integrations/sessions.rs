@@ -24,6 +24,7 @@ struct ListedSession {
     #[serde(default)]
     default: bool,
     session_dir: Option<String>,
+    socket_path: Option<String>,
 }
 
 pub(crate) fn collect_sessions(config: &Config) -> Vec<Entry> {
@@ -53,12 +54,26 @@ pub(crate) fn collect_remotes(config: &Config) -> Vec<Entry> {
 
 fn collect_local_sessions() -> Vec<Entry> {
     let json = herdr_json(["session", "list", "--json"]).unwrap_or(Value::Null);
-    let list: SessionList = serde_json::from_value(json.clone())
+    session_list_from_json(&json)
+        .sessions
+        .into_iter()
+        .map(local_session_entry)
+        .collect()
+}
+
+fn session_list_from_json(json: &Value) -> SessionList {
+    serde_json::from_value(json.clone())
         .or_else(|_| {
             serde_json::from_value(json.pointer("/result").cloned().unwrap_or(Value::Null))
         })
-        .unwrap_or(SessionList { sessions: vec![] });
-    list.sessions.into_iter().map(local_session_entry).collect()
+        .unwrap_or(SessionList { sessions: vec![] })
+}
+
+fn session_uses_socket(json: &Value, name: &str, socket_path: &str) -> bool {
+    session_list_from_json(json)
+        .sessions
+        .into_iter()
+        .any(|session| session.name == name && session.socket_path.as_deref() == Some(socket_path))
 }
 
 fn local_session_entry(session: ListedSession) -> Entry {
@@ -149,6 +164,15 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
 }
 
 pub(crate) fn attach_session(name: &str) -> Result<(), String> {
+    if let Ok(host_socket) = env::var("HERDR_SOCKET_PATH") {
+        let json = herdr_json(["session", "list", "--json"]).unwrap_or(Value::Null);
+        if session_uses_socket(&json, name, &host_socket) {
+            return Err(format!(
+                "refusing to attach session '{name}' because it hosts Navigator"
+            ));
+        }
+    }
+
     let status = herdr_attach_command()
         .args(["session", "attach", name])
         .status()
@@ -196,6 +220,7 @@ mod tests {
             running: true,
             default: false,
             session_dir: Some("/tmp/herdr-work".into()),
+            socket_path: None,
         });
 
         assert_eq!(entry.source, Source::Session);
@@ -222,5 +247,18 @@ mod tests {
             entry.action,
             EntryAction::OpenRemote { ref target } if target == "prod-box"
         ));
+    }
+
+    #[test]
+    fn session_is_hosted_only_when_socket_matches() {
+        let json = serde_json::json!({"sessions":[
+            {"name":"default","socket_path":"/tmp/herdr.sock"},
+            {"name":"other","socket_path":"/tmp/other.sock"},
+            {"name":"legacy"}
+        ]});
+
+        assert!(session_uses_socket(&json, "default", "/tmp/herdr.sock"));
+        assert!(!session_uses_socket(&json, "other", "/tmp/herdr.sock"));
+        assert!(!session_uses_socket(&json, "legacy", "/tmp/herdr.sock"));
     }
 }
