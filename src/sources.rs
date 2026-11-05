@@ -197,10 +197,15 @@ fn agents_from_json(
                 .collect();
             let display_agent = agent_name.unwrap_or(agent);
             let location = tab_labels.get(tab).map(String::as_str).unwrap_or(&dir);
-            let title = match task_title {
-                Some(task) => format!("{display_agent} · {task} · {workspace_label} · {location}"),
-                None => format!("{display_agent} · {workspace_label} · {location}"),
-            };
+            let mut title_parts = vec![display_agent];
+            if let Some(task) = task_title {
+                title_parts.push(task);
+            }
+            title_parts.push(workspace_label);
+            if location != workspace_label {
+                title_parts.push(location);
+            }
+            let title = title_parts.join(" · ");
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -418,6 +423,28 @@ mod tests {
         );
         assert!(agents[0].search_terms.contains(&"2".to_string()));
         assert!(agents[0].subtitle.starts_with("working"));
+    }
+
+    #[test]
+    fn agent_title_omits_duplicate_workspace_tab_label() {
+        let workspaces = serde_json::json!({"result":{"workspaces":[
+            {"workspace_id":"w1","label":"espresso-theme","tab_count":1,"pane_count":1}
+        ]}});
+        let (workspaces, _, _, _) = workspaces_from_json(
+            &workspaces,
+            &HashMap::new(),
+            &mut NavigatorSnapshot::default(),
+        );
+        let agents = serde_json::json!({"result":{"agents":[
+            {"agent":"claude","agent_status":"working","cwd":"/tmp/espresso-theme","pane_id":"w1:p1","tab_id":"w1:t1","workspace_id":"w1"}
+        ]}});
+        let tabs = HashMap::from([("w1:t1".into(), "espresso-theme".into())]);
+
+        let entries = agents_from_json(&agents, &tabs, &workspaces, &[]);
+        assert_eq!(entries[0].title, "claude · espresso-theme");
+        assert!(entries[0]
+            .search_terms
+            .contains(&"espresso-theme".to_string()));
     }
 
     #[test]
